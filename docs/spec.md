@@ -21,9 +21,14 @@ AI_Prompt_Helper-Chrome_Extension/
 ├── manifest.json           # Chrome拡張機能の設定ファイル
 ├── prompts.json            # プロンプトテクニック集データ
 ├── README.md               # プロンプト編集方法説明
-├── 仕様書.md              # 本仕様書
 ├── CLAUDE.md               # Claude Code向けプロジェクト情報
-├── src/                    # ソースファイルディレクトリ
+├── DEVELOPMENT_PROCESS.md  # 開発プロセス指針
+├── docs/                   # ドキュメント
+│   ├── spec.md             # 本仕様書
+│   └── fails.md            # 失敗事例・バグ記録
+├── temp/                   # 全バージョン履歴保持
+├── test/                   # 最新版のみ（テスト用）
+├── src/                    # リリース版
 │   ├── content.js          # メインスクリプト
 │   ├── styles.css          # UIスタイル
 │   └── popup.html          # 拡張機能ポップアップ画面
@@ -235,5 +240,5 @@ AI_Prompt_Helper-Chrome_Extension/
 ---
 
 **バージョン**: 1.0  
-**最終更新**: 2025年6月29日  
+**最終更新**: 2025年7月6日  
 **作成者**: Claude Code
