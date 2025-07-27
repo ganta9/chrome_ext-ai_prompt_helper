@@ -1,0 +1,15 @@
+{
+  "name": "chrome-ext-ai-prompt-helper",
+  "version": "3.0.0",
+  "description": "AI Prompt Helper Chrome Extension with Auto-Update Script",
+  "scripts": {
+    "update-prompts": "node update-prompts.js",
+    "help": "echo 'Usage: npm run update-prompts - プロンプトファイルを自動スキャンしてcontent.jsを更新'"
+  },
+  "keywords": ["chrome-extension", "ai", "prompts", "automation"],
+  "author": "AI Assistant",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  }
+}
