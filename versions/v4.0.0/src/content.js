@@ -1,4 +1,4 @@
-// プロンプトサンプルデータ（JSONファイルから読み込み）
+// プロンプトデータ（JSONファイルから読み込み）
 let promptSamples = [];
 
 // プロンプトデータを読み込む（Ver3.0.0 - フォルダベース優先）
@@ -73,41 +73,45 @@ async function loadPromptsFromFolders() {
 async function scanPromptFolders() {
   console.log('Ver3.0.0自動生成版: 既存ファイルのみ読み込み');
   
-  // 自動生成: 2025/7/27 19:45:37
+  // 自動生成: 2025/8/11 22:50:20
   return {
     categories: [
       {
-        name: '001_基本プロンプト技法',
+        name: '001_事前設定',
         subcategories: [
           {
-            name: '001_Zero-shot',
-            prompts: ['001_基本的なタスク指示.txt', '002_分類タスク.txt', '003_テストー.txt']
+            name: '001_基本設定',
+            prompts: ['001_コア設定.txt', '002_事前設定.txt', '003_設定の完了.txt']
           },
           {
-            name: '002_Few-shot',
-            prompts: ['001_例を用いた分類.txt']
+            name: '002_応用設定',
+            prompts: ['001_会話継続支援.txt']
           }
         ]
       },
       {
-        name: '002_思考プロセス技法',
+        name: '002_タスク入力',
         subcategories: [
           {
-            name: '001_CoT',
-            prompts: ['001_段階的思考.txt']
+            name: '001_一般',
+            prompts: ['001_文章校閲.txt', '002_翻訳.txt', '003_プログラミング.txt']
           },
           {
-            name: '002_ToT',
-            prompts: ['001_複数の解決方法を検討.txt']
+            name: '002_ペルソナ',
+            prompts: ['001_プロマネ.txt', '002_リスクアセスメント.txt']
           }
         ]
       },
       {
-        name: '003_ロールプレイ技法',
+        name: '003_不足情報の補完',
         subcategories: [
           {
-            name: '001_専門家ペルソナ',
-            prompts: ['001_専門家として回答.txt', '002_テスト.txt']
+            name: '001_基本設定',
+            prompts: ['001_基本設定.txt']
+          },
+          {
+            name: '002_応用設定',
+            prompts: ['001_応用設定.txt']
           }
         ]
       }
@@ -226,7 +230,7 @@ function createPromptHelper() {
   const toggleBtn = document.createElement('button');
   toggleBtn.className = 'prompt-toggle-btn';
   toggleBtn.innerHTML = '📝';
-  toggleBtn.title = 'プロンプトサンプル';
+  toggleBtn.title = 'プロンプトヘルパー';
   
   // ドロップダウンメニュー
   const dropdown = document.createElement('div');
@@ -235,7 +239,7 @@ function createPromptHelper() {
   
   const header = document.createElement('div');
   header.className = 'prompt-dropdown-header';
-  header.textContent = 'プロンプトサンプル (Ver3.0.0)';
+  header.textContent = 'プロンプトヘルパー (Ver4.0.0)';
   
   const categoriesContainer = document.createElement('div');
   categoriesContainer.className = 'categories-container-inline';
@@ -333,7 +337,7 @@ function createPromptHelper() {
     
     helper.style.position = 'fixed';
     helper.style.top = `${rect.top - 8}px`;
-    helper.style.left = `${rect.left - 40}px`;
+    helper.style.left = `${rect.left - 80}px`;
     
     // ドロップダウンの位置を調整（画面下部の場合は上向きに表示）
     const dropdown = helper.querySelector('.prompt-dropdown');
@@ -377,16 +381,39 @@ function insertPrompt(text) {
   const textarea = findTextarea();
   if (!textarea) return;
   
+  textarea.focus();
+  
   if (textarea.tagName === 'TEXTAREA') {
     textarea.value = text;
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
   } else {
-    textarea.textContent = text;
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    // contenteditable要素: サイト別アプローチ
+    const site = detectAISite();
+    
+    if (site === 'claude' || site === 'chatgpt') {
+      // Claude.ai & ChatGPT: Clipboard APIを使用してペースト操作をシミュレート
+      navigator.clipboard.writeText(text).then(() => {
+        const pasteEvent = new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: new DataTransfer()
+        });
+        
+        pasteEvent.clipboardData.setData('text/plain', text);
+        textarea.dispatchEvent(pasteEvent);
+      }).catch(() => {
+        // Clipboard APIが失敗した場合のフォールバック
+        textarea.textContent = text;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    } else {
+      // その他のサイト（Gemini等）: Ver3の安定したアプローチ
+      textarea.textContent = text;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
-  
-  textarea.focus();
 }
+
 
 // 旧トグルボタン機能を削除（インライン版に統合）
 

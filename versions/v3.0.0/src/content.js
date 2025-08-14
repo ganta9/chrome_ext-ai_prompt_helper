@@ -73,41 +73,45 @@ async function loadPromptsFromFolders() {
 async function scanPromptFolders() {
   console.log('Ver3.0.0自動生成版: 既存ファイルのみ読み込み');
   
-  // 自動生成: 2025/7/27 19:45:37
+  // 自動生成: 2025/8/11 20:56:54
   return {
     categories: [
       {
-        name: '001_基本プロンプト技法',
+        name: '001_事前設定',
         subcategories: [
           {
-            name: '001_Zero-shot',
-            prompts: ['001_基本的なタスク指示.txt', '002_分類タスク.txt', '003_テストー.txt']
+            name: '001_基本設定',
+            prompts: ['001_コア設定.txt', '002_事前設定.txt', '003_設定の完了.txt']
           },
           {
-            name: '002_Few-shot',
-            prompts: ['001_例を用いた分類.txt']
+            name: '002_応用設定',
+            prompts: ['001_会話継続支援.txt']
           }
         ]
       },
       {
-        name: '002_思考プロセス技法',
+        name: '002_タスク入力',
         subcategories: [
           {
-            name: '001_CoT',
-            prompts: ['001_段階的思考.txt']
+            name: '001_一般',
+            prompts: ['001_文章校閲.txt', '002_翻訳.txt', '003_プログラミング.txt']
           },
           {
-            name: '002_ToT',
-            prompts: ['001_複数の解決方法を検討.txt']
+            name: '002_ペルソナ',
+            prompts: ['001_プロマネ.txt', '002_リスクアセスメント.txt']
           }
         ]
       },
       {
-        name: '003_ロールプレイ技法',
+        name: '003_不足情報の補完',
         subcategories: [
           {
-            name: '001_専門家ペルソナ',
-            prompts: ['001_専門家として回答.txt', '002_テスト.txt']
+            name: '001_基本設定',
+            prompts: ['001_基本設定.txt']
+          },
+          {
+            name: '002_応用設定',
+            prompts: ['001_応用設定.txt']
           }
         ]
       }
@@ -387,6 +391,7 @@ function insertPrompt(text) {
   
   textarea.focus();
 }
+
 
 // 旧トグルボタン機能を削除（インライン版に統合）
 

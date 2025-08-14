@@ -1,12 +1,28 @@
-# AI Prompt Helper Ver3.0.0
+# AI Prompt Helper Ver4.0.0 - 改行対応版
 
 ## バージョン概要
 
-Ver3.0.0では、**自動更新機能**を中核とした革新的なプロンプト管理システムを実装しました。事前定義されたファイルリストを完全に廃止し、自動生成スクリプトによる安全で効率的なフォルダ管理を実現しています。
+Ver4.0.0では、Ver3.0.0の安定した基本機能に加えて、**改行の視覚的反映機能**を実装しました。複数行にわたるプロンプトが正確に表示され、より読みやすく使いやすくなりました。
 
-## 主要な変更点
+## Ver4.0.0の新機能
 
-### 1. 自動更新機能の実装
+### 1. 改行の視覚的反映機能
+
+**contenteditable要素での改行処理：**
+```javascript
+// Ver3.0.0（改行なし）
+textarea.textContent = text;
+
+// Ver4.0.0（改行対応）
+const lines = text.split('\n');
+textarea.innerHTML = '';
+lines.forEach((line, index) => {
+  if (index > 0) textarea.appendChild(document.createElement('br'));
+  if (line.length > 0) textarea.appendChild(document.createTextNode(line));
+});
+```
+
+### 2. Ver3.0.0から継承した機能
 
 - **新機能**: Node.js を使った自動フォルダスキャンスクリプト
 - **クロスプラットフォーム**: Windows (.bat) / macOS (.command) 対応
