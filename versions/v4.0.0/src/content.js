@@ -69,49 +69,48 @@ async function loadPromptsFromFolders() {
   }
 }
 
-// 実際に存在するファイルのみを返す（Ver3.0.0自動生成版）
+// 実際に存在するファイルのみを返す（Ver4.0.0自動生成版）
 async function scanPromptFolders() {
-  console.log('Ver3.0.0自動生成版: 既存ファイルのみ読み込み');
+  console.log('Ver4.0.0自動生成版: 既存ファイルのみ読み込み');
   
-  // 自動生成: 2025/8/11 22:50:20
+  // 自動生成: 2025/8/17 更新
   return {
     categories: [
       {
-        name: '001_事前設定',
+        name: '001_本気モード',
         subcategories: [
           {
-            name: '001_基本設定',
+            name: '001_STEP1',
             prompts: ['001_コア設定.txt', '002_事前設定.txt', '003_設定の完了.txt']
           },
           {
-            name: '002_応用設定',
+            name: '002_STEP1.5',
             prompts: ['001_会話継続支援.txt']
+          },
+          {
+            name: '003_STEP2',
+            prompts: ['001_プロジェクト前提条件.txt', '002_要求仕様書添削.txt', '003_リスクアセスメント.txt']
+          },
+          {
+            name: '004_STEP3',
+            prompts: ['001_不足情報の補完.txt']
           }
         ]
       },
       {
-        name: '002_タスク入力',
+        name: '002_ワンショット',
         subcategories: [
           {
             name: '001_一般',
-            prompts: ['001_文章校閲.txt', '002_翻訳.txt', '003_プログラミング.txt']
+            prompts: ['001_文章校閲.txt', '002_翻訳.txt', '003_図解.txt', '004_推論.txt', '005_AI同士で議論.txt', '006_要求仕様書添削.txt']
           },
           {
             name: '002_ペルソナ',
-            prompts: ['001_プロマネ.txt', '002_リスクアセスメント.txt']
-          }
-        ]
-      },
-      {
-        name: '003_不足情報の補完',
-        subcategories: [
-          {
-            name: '001_基本設定',
-            prompts: ['001_基本設定.txt']
+            prompts: ['001_プロマネ.txt']
           },
           {
-            name: '002_応用設定',
-            prompts: ['001_応用設定.txt']
+            name: '003_プログラム',
+            prompts: ['001_一般.txt', '002_一般2.txt', '003_コミットメッセージ.txt']
           }
         ]
       }
