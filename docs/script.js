@@ -26,7 +26,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('初期化完了');
     } catch (error) {
         console.error('初期化エラー:', error);
-        showNotification('初期化に失敗しました', 'error');
+        showNotification(`初期化に失敗しました: ${error.message}`, 'error');
+        
+        // フォールバック処理
+        try {
+            prompts = [];
+            updateTagList();
+            renderPrompts();
+            updateCounts();
+            setupEventListeners();
+            console.log('フォールバック初期化完了');
+        } catch (fallbackError) {
+            console.error('フォールバック初期化も失敗:', fallbackError);
+        }
     }
 });
 

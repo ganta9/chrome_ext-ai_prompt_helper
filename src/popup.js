@@ -165,13 +165,11 @@ async function testConnection() {
         setLoading(true);
         showStatus('接続をテスト中...', 'warning');
         
-        // データファイルURLを構築
-        const dataUrl = url.endsWith('/') ? url + 'data/prompts.json' : url + '/data/prompts.json';
-        
-        const response = await fetch(dataUrl, {
+        // GitHub PagesサイトのHTMLページに接続テスト
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'Accept': 'application/json',
+                'Accept': 'text/html',
             },
             cache: 'no-cache'
         });
@@ -180,21 +178,22 @@ async function testConnection() {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        const data = await response.json();
+        const html = await response.text();
         
-        if (!data || !Array.isArray(data.prompts)) {
-            throw new Error('データ形式が正しくありません');
+        // HTMLページが正常に取得できるかチェック
+        if (!html.includes('AI Prompt Helper') && !html.includes('prompt')) {
+            throw new Error('正しいプロンプト編集サイトではないようです');
         }
         
-        // 統計情報を更新
+        // 設定を保存
         await chrome.storage.sync.set({
-            totalPrompts: data.prompts.length,
+            githubPagesUrl: url,
             lastSync: new Date().toISOString()
         });
         
         await updateStats();
         
-        showStatus(`接続成功: ${data.prompts.length}個のプロンプトを発見`, 'success');
+        showStatus('接続成功: GitHub Pages編集サイトに接続できました', 'success');
         
     } catch (error) {
         console.error('接続テストエラー:', error);

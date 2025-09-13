@@ -279,11 +279,11 @@ function createPromptPanel(githubPagesUrl) {
 async function getGitHubPagesUrl() {
   try {
     const result = await chrome.storage.sync.get(['githubPagesUrl']);
-    return result.githubPagesUrl || 'https://username.github.io/prompt-helper-data/';
+    return result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
   } catch (error) {
     console.error('設定取得エラー:', error);
     // フォールバック用のデフォルトURL
-    return 'https://username.github.io/prompt-helper-data/';
+    return 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
   }
 }
 
