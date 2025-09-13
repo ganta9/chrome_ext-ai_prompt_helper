@@ -5,7 +5,12 @@
   "description": "AIサイト用プロンプト管理ツール",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.github.io/*"
   ],
   "content_scripts": [
     {

@@ -260,10 +260,55 @@ async function syncNow() {
         const html = await response.text();
 
         // HTMLから初期データ（サンプル）のプロンプト数を推測
-        // 🔧 修正: 実際のプロンプト数を動的に取得
-        // HTMLから「プロンプト」の出現回数で推測（暫定的解決策）
-        const promptMatches = html.match(/<div class="prompt-card"/g) || [];
-        const samplePromptCount = Math.max(promptMatches.length, 3); // 最低3個は保証
+        // 🔧 修正: GitHub PagesサイトのJavaScriptを実行してプロンプト数を取得
+        let actualPromptCount = 3; // フォールバック値
+
+        try {
+            // 新しいタブでGitHub Pagesサイトを開いてプロンプト数を取得
+            const tab = await chrome.tabs.create({
+                url: url,
+                active: false  // バックグラウンドで開く
+            });
+
+            // ページの読み込み完了を待機
+            await new Promise(resolve => {
+                chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+                    if (tabId === tab.id && info.status === 'complete') {
+                        chrome.tabs.onUpdated.removeListener(listener);
+                        resolve();
+                    }
+                });
+            });
+
+            // コンテンツスクリプトでlocalStorageを読み取り
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: () => {
+                    try {
+                        const data = localStorage.getItem('promptsData');
+                        if (data) {
+                            const parsed = JSON.parse(data);
+                            return parsed.prompts ? parsed.prompts.length : 3;
+                        }
+                        return 3;
+                    } catch (e) {
+                        return 3;
+                    }
+                }
+            });
+
+            if (results && results[0] && results[0].result) {
+                actualPromptCount = results[0].result;
+            }
+
+            // タブを閉じる
+            chrome.tabs.remove(tab.id);
+
+        } catch (error) {
+            console.warn('プロンプト数の取得に失敗:', error);
+        }
+
+        const samplePromptCount = actualPromptCount;
 
         // 統計情報を更新
         await chrome.storage.sync.set({
