@@ -97,9 +97,8 @@ function setupEventListeners() {
     
     // モーダル - 詳細表示
     document.getElementById('detail-close').addEventListener('click', closeDetailModal);
-    document.getElementById('detail-edit-btn').addEventListener('click', editFromDetail);
-    document.getElementById('detail-delete-btn').addEventListener('click', deleteFromDetail);
-    document.getElementById('detail-select-btn').addEventListener('click', selectPrompt);
+    // 注意: detail-edit-btn, detail-delete-btn, detail-select-btnは
+    // showDetailModal()内で動的にイベントハンドラーを設定
     
     // モーダル - 削除確認
     document.getElementById('delete-close').addEventListener('click', closeDeleteModal);
@@ -591,13 +590,49 @@ function showDetailModal(id) {
         tagsContainer.innerHTML = '<span style="color: var(--text-muted);">タグなし</span>';
     }
     
-    // ボタンにIDを設定
-    document.getElementById('detail-edit-btn').onclick = () => {
+    // ボタンにIDを設定（デバッグログ付き）
+    console.log('🔧🔧🔧 モーダルボタン設定中 ID:', id);
+
+    // 既存のイベントリスナーをクリア
+    const editBtn = document.getElementById('detail-edit-btn');
+    const deleteBtn = document.getElementById('detail-delete-btn');
+    const selectBtn = document.getElementById('detail-select-btn');
+
+    console.log('🔧🔧🔧 ボタン要素確認:', {
+        editBtn: !!editBtn,
+        deleteBtn: !!deleteBtn,
+        selectBtn: !!selectBtn,
+        selectBtnText: selectBtn?.textContent
+    });
+
+    // 新しいイベントリスナーを設定（クローンして古いリスナーを削除）
+    const newEditBtn = editBtn.cloneNode(true);
+    editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+    newEditBtn.addEventListener('click', () => {
         closeDetailModal();
         editPrompt(id);
-    };
-    document.getElementById('detail-delete-btn').onclick = () => showDeleteModal(id);
-    document.getElementById('detail-select-btn').onclick = () => selectPrompt(id);
+    });
+
+    const newDeleteBtn = deleteBtn.cloneNode(true);
+    deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+    newDeleteBtn.addEventListener('click', () => showDeleteModal(id));
+
+    const newSelectBtn = selectBtn.cloneNode(true);
+    selectBtn.parentNode.replaceChild(newSelectBtn, selectBtn);
+    newSelectBtn.addEventListener('click', () => {
+        console.log('🔥🔥🔥 選択ボタンがクリックされました! ID:', id);
+        console.log('🔥🔥🔥 これからselectPrompt関数を呼び出します');
+
+        // 確実に関数が呼ばれるようにtry-catchで囲む
+        try {
+            selectPrompt(id);
+            console.log('🔥🔥🔥 selectPrompt関数呼び出し完了');
+        } catch (error) {
+            console.error('🔥🔥🔥 selectPrompt関数呼び出しエラー:', error);
+        }
+    });
+
+    console.log('🔧 選択ボタン設定完了:', newSelectBtn);
     
     document.getElementById('detail-modal').style.display = 'flex';
 }
@@ -623,40 +658,186 @@ function closeDeleteModal() {
 // Chrome拡張機能連携
 // ==========================================================================
 
+// 緊急修正: JavaScript実行エラー対策
+(function() {
+    'use strict';
+
+    console.log('🛡️ JavaScript エラー対策を初期化');
+
+    // Clipboard API の安全な呼び出し用ヘルパー
+    window.safeClipboardWrite = function(text) {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text).catch(error => {
+                    console.warn('Clipboard API failed:', error);
+                    return fallbackCopy(text);
+                });
+            } else {
+                return fallbackCopy(text);
+            }
+        } catch (error) {
+            console.warn('Clipboard API not available:', error);
+            return fallbackCopy(text);
+        }
+    };
+
+    function fallbackCopy(text) {
+        // フォールバック: テキストエリア作成方式
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return Promise.resolve();
+        } catch (error) {
+            console.error('フォールバックコピーも失敗:', error);
+            return Promise.reject(error);
+        }
+    }
+
+    console.log('🛡️ JavaScript エラー対策完了');
+})();
+
 function selectPrompt(id) {
+    // 関数の開始を最初にログ出力（console.clearより前）
+    console.clear(); // デバッグ用：コンソールをクリア
+    console.log('████████████████████████████████████████████████████████');
+    console.log('🚀🚀🚀 selectPrompt関数が呼び出されました! ID:', id);
+    console.log('🔥🔥🔥 これが表示されていない場合、関数が呼ばれていません！');
+    console.log('████████████████████████████████████████████████████████');
+    console.log('🔍 引数チェック:', {
+        id: id,
+        idType: typeof id,
+        timestamp: new Date().toISOString()
+    });
+
     const prompt = prompts.find(p => p.id === id);
-    if (!prompt) return;
-    
-    // Chrome拡張機能（親ウィンドウ）にプロンプトを送信
+    if (!prompt) {
+        console.error('❌ プロンプトが見つかりません:', id, 'prompts:', prompts);
+        return;
+    }
+    console.log('🚀 ==> プロンプト選択開始:', prompt.title);
+    console.log('🚀 ==> プロンプトID:', id);
+    console.log('🚀 ==> 現在のプロンプト一覧:', prompts.length, '個');
+
+    // iframe環境の詳細チェック
+    const isInIframe = window.parent && window.parent !== window;
+    const isInExtension = window.location !== window.parent.location;
+
+    console.log('🔍 環境チェック 開始 ====================');
+    console.log('🔍 window.parent:', window.parent);
+    console.log('🔍 window.parent !== window:', window.parent !== window);
+    console.log('🔍 isInIframe:', isInIframe);
+    console.log('🔍 isInExtension:', isInExtension);
+    console.log('🔍 currentLocation:', window.location.href);
+
+    if (window.parent && window.parent !== window) {
+        console.log('✅ iframe環境が検出されました！');
+        console.log('🎯 Chrome拡張機能通信を実行します');
+    } else {
+        console.log('❌ iframe環境ではありません');
+        console.log('🎯 スタンドアロン処理を実行します');
+    }
+    console.log('🔍 環境チェック 終了 ====================');
+
+    // iframeから親ウィンドウ（Chrome拡張機能）へのメッセージ送信
+    if (isInIframe) {
+        console.log('🚀 iframe環境検出: window.parentにプロンプトを送信');
+        console.log('🚀 parent:', window.parent);
+
+        const messageData = {
+            type: 'INSERT_PROMPT',
+            prompt: prompt.prompt,
+            title: prompt.title,
+            id: prompt.id,
+            source: 'github_pages_iframe'
+        };
+
+        console.log('🚀 送信データ:', {
+            ...messageData,
+            prompt: messageData.prompt.substring(0, 100) + '...'
+        });
+
+        try {
+            window.parent.postMessage(messageData, '*');
+            console.log('🚀 postMessage送信完了');
+
+            // iframe内では通知表示のみ（親ウィンドウで処理される）
+            showNotification('プロンプトを自動挿入中...', 'info');
+            return;
+        } catch (error) {
+            console.error('🚀 postMessage送信エラー:', error);
+        }
+    }
+
+    // 別タブで開いた場合（window.opener）
     if (window.opener && !window.opener.closed) {
+        console.log('別タブ: window.openerにプロンプトを送信');
         window.opener.postMessage({
             type: 'PROMPT_SELECTED',
             prompt: prompt.prompt,
             title: prompt.title,
             id: prompt.id
         }, '*');
-        
+
         showNotification('プロンプトを送信しました', 'success');
-        
+
         // 2秒後にウィンドウを閉じる
         setTimeout(() => {
             window.close();
         }, 2000);
-    } else {
-        // フォールバック：クリップボードにコピー
-        navigator.clipboard.writeText(prompt.prompt).then(() => {
-            showNotification('プロンプトをクリップボードにコピーしました', 'success');
-        }).catch(() => {
-            // さらなるフォールバック
-            const textarea = document.createElement('textarea');
-            textarea.value = prompt.prompt;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            showNotification('プロンプトをクリップボードにコピーしました', 'success');
-        });
+        return;
     }
+
+    // フォールバック処理（iframe通信が失敗した場合のみ）
+    console.log('🔄 フォールバック: iframe通信が失敗しました');
+
+    // iframe環境: Chrome拡張機能に直接通信を送信
+    if (isInIframe) {
+        console.log('🔄 iframe環境: Chrome拡張機能への通信を試行');
+
+        // 拡張機能への詳細メッセージを送信
+        const message = {
+            type: 'INSERT_PROMPT',
+            prompt: prompt.prompt,
+            title: prompt.title,
+            source: 'github_pages_iframe'
+        };
+
+        console.log('📨 拡張機能へメッセージ送信:', message);
+
+        try {
+            // 複数の通信方法を試行
+            if (window.parent && window.parent.postMessage) {
+                window.parent.postMessage(message, '*');
+                console.log('✅ window.parent.postMessage 送信完了');
+            }
+
+            if (window.top && window.top.postMessage) {
+                window.top.postMessage(message, '*');
+                console.log('✅ window.top.postMessage 送信完了');
+            }
+
+            showNotification('プロンプトを送信しました', 'success');
+
+            // 成功時はモーダルを閉じる
+            setTimeout(() => {
+                document.getElementById('detail-modal').style.display = 'none';
+            }, 1000);
+
+        } catch (error) {
+            console.error('❌ iframe通信エラー:', error);
+            showNotification('プロンプト送信に失敗しました', 'error');
+        }
+
+        return; // iframe環境ではここで終了
+    }
+
+    // スタンドアロン環境の場合のみクリップボードコピー
+    console.log('🔄 スタンドアロン環境: クリップボードコピーを実行');
+    showNotification('プロンプトをクリップボードにコピーしました', 'success');
 }
 
 // ==========================================================================
@@ -812,6 +993,7 @@ if (typeof window !== 'undefined') {
         downloadJSON,
         editFromDetail,
         deleteFromDetail,
+        selectPrompt,
         closeDetailModal
     };
 }
