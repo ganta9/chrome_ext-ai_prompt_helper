@@ -759,6 +759,37 @@ function formatDateForFilename(date) {
 // デバッグ用
 // ==========================================================================
 
+// ==========================================================================
+// 詳細モーダル関連関数
+// ==========================================================================
+
+function editFromDetail() {
+    if (currentEditId) {
+        closeDetailModal();
+        showEditModal(currentEditId);
+    }
+}
+
+function deleteFromDetail() {
+    if (currentEditId) {
+        closeDetailModal();
+        if (confirm('このプロンプトを削除してもよろしいですか？')) {
+            deletePrompt(currentEditId);
+        }
+    }
+}
+
+function closeDetailModal() {
+    const detailModal = document.getElementById('detail-modal');
+    if (detailModal) {
+        detailModal.style.display = 'none';
+    }
+}
+
+// ==========================================================================
+// Window API エクスポート
+// ==========================================================================
+
 if (typeof window !== 'undefined') {
     window.promptHelper = {
         prompts,
@@ -767,6 +798,9 @@ if (typeof window !== 'undefined') {
         deletePrompt,
         loadPrompts,
         savePrompts,
-        downloadJSON
+        downloadJSON,
+        editFromDetail,
+        deleteFromDetail,
+        closeDetailModal
     };
 }
