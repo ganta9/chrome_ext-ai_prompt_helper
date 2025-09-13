@@ -262,9 +262,15 @@ function updateActiveTag() {
 }
 
 function renderPrompts() {
+    console.log('🔍 デバッグ: renderPrompts開始');
+    console.log('🔍 デバッグ: prompts.length:', prompts.length);
+    console.log('🔍 デバッグ: currentFilter:', currentFilter);
+    console.log('🔍 デバッグ: searchQuery:', searchQuery);
+    console.log('🔍 デバッグ: 全プロンプト:', prompts.map(p => ({ title: p.title, tags: p.tags })));
+
     const grid = document.getElementById('prompt-grid');
     const emptyState = document.getElementById('empty-state');
-    
+
     // フィルタリングと検索
     let filteredPrompts = prompts.filter(prompt => {
         // タグフィルター
@@ -287,7 +293,10 @@ function renderPrompts() {
         
         return true;
     });
-    
+
+    console.log('🔍 デバッグ: フィルタリング後のプロンプト数:', filteredPrompts.length);
+    console.log('🔍 デバッグ: フィルタリング後のタイトル:', filteredPrompts.map(p => p.title));
+
     // ソート
     const sortBy = document.getElementById('sort-select').value;
     filteredPrompts.sort((a, b) => {
