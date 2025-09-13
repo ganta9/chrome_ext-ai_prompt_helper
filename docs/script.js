@@ -43,17 +43,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initializeApp() {
-    showLoading(true);
-    
-    // サンプルデータまたは既存データの読み込み
-    await loadPrompts();
-    
-    // UI更新
-    updateTagList();
-    renderPrompts();
-    updateCounts();
-    
-    showLoading(false);
+    try {
+        showLoading(true);
+        console.log('🔄 ステップ1: データ読み込み開始');
+        
+        // サンプルデータまたは既存データの読み込み
+        await loadPrompts();
+        console.log('✅ ステップ1完了: データ読み込み成功');
+        
+        console.log('🔄 ステップ2: UI更新開始');
+        // UI更新
+        updateTagList();
+        console.log('✅ ステップ2-1完了: タグリスト更新');
+        
+        renderPrompts();
+        console.log('✅ ステップ2-2完了: プロンプト描画');
+        
+        updateCounts();
+        console.log('✅ ステップ2-3完了: カウント更新');
+        
+        showLoading(false);
+        console.log('✅ 初期化完全成功');
+        
+    } catch (error) {
+        console.error('💥 initializeApp内部エラー:', error);
+        showLoading(false);
+        throw error; // エラーを上位に再スロー
+    }
 }
 
 // ==========================================================================

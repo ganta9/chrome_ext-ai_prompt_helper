@@ -1,35 +1,44 @@
-# AI Prompt Helper
+# AI Prompt Helper v6.0.0
 
 ChatGPT、Claude、Google Gemini などの AI チャットサイトでプロンプトサンプルを簡単に選択・入力できる Chrome 拡張機能です。
 
-## 🚀 最新版: Ver4.0.0
+## 🚀 最新版: Ver6.0.0
 
-**改行表示機能を搭載した改良版**
-- **改行機能**: Claude.aiとChatGPTで改行が正しく表示される
-- **サイト別最適化**: 各AIサイトに最適化されたアプローチを採用
-- **安定版並存**: Ver3.0.0（安定版）とVer4.0.0（改行機能版）を併用可能
-- **互換性維持**: 全対応サイトで動作を確認済み
+**GitHub Pages連携プロンプト管理機能を搭載**
+- **📝 高機能エディター**: 4フィールド管理（タイトル、プロンプト、メモ、タグ）
+- **🌐 GitHub Pages連携**: ブラウザ内でプロンプトを編集・管理
+- **🎨 モダンUI**: ダークテーマの直感的インターフェース
+- **📱 レスポンシブ**: デスクトップ・タブレット・モバイル対応
+- **🔒 セキュア通信**: postMessage APIによる安全な拡張機能連携
+- **🔍 高度検索**: タグフィルタリング・テキスト検索
 
 ## 📦 インストール・使用方法
 
 ### 1. Chrome拡張機能のインストール
 
-**Ver4.0.0（改行機能版） - 推奨**
-1. `versions/v4.0.0/` フォルダをダウンロード
+1. このリポジトリをクローンまたはダウンロード
 2. Chrome の拡張機能管理画面 (chrome://extensions/) を開く
 3. 「デベロッパーモード」を有効化
-4. 「パッケージ化されていない拡張機能を読み込む」で `versions/v4.0.0/` フォルダを選択
+4. 「パッケージ化されていない拡張機能を読み込む」でプロジェクトルートフォルダを選択
 
-**Ver3.0.0（安定版）**
-- 改行機能は不要で安定性を重視する場合は `versions/v3.0.0/` を使用
+### 2. GitHub Pages編集サイトの設定
 
-### 2. 使用方法
-1. 対応AIサイトにアクセス
-2. 画面の📝ボタンをクリック
-3. カテゴリ→サブカテゴリ→プロンプトの順で選択
-4. 自動で入力欄に反映されます
+1. 拡張機能のアイコンをクリック
+2. 編集サイトURL欄に `https://ganta9.github.io/chrome_ext-ai_prompt_helper/` を入力
+3. 「接続テスト」をクリックして接続を確認
+4. 「保存」をクリック
 
-## 🌐 対応サイト
+### 3. 使用方法
+
+1. **AI サイトにアクセス**（ChatGPT、Claude、Gemini等）
+2. **右側の📝ボタンをクリック**
+3. **右側パネルで編集**：
+   - プロンプトの追加・編集・削除
+   - タグによる分類・検索
+   - メモの追加
+4. **プロンプト選択**で入力欄に自動挿入
+
+## 🌍 対応サイト
 
 - **ChatGPT** (chat.openai.com, chatgpt.com)
 - **Claude** (claude.ai)
@@ -41,74 +50,87 @@ ChatGPT、Claude、Google Gemini などの AI チャットサイトでプロン�
 - **Grok** (grok.com, x.ai)
 - **Genspark** (genspark.ai)
 
-## 🗂️ プロジェクト構造
+## 🛠 技術仕様
 
+### アーキテクチャ
+- **Chrome Extension**: Manifest V3
+- **GitHub Pages**: 静的サイトホスティング
+- **通信**: postMessage API
+- **データ保存**: localStorage（ブラウザローカル）
+- **スタイル**: CSS カスタムプロパティ、ダークテーマ
+
+### ファイル構成
 ```
 chrome_ext-ai_prompt_helper/
-├── README.md                    # このファイル
-├── CLAUDE.md                   # Claude Code用設定
-├── VERSION_INFO.md             # バージョン情報
-└── versions/                   # バージョン管理
-    ├── v1.0.0/                # JSON形式版
-    ├── v2.0.0/                # フォルダベース版
-    ├── v3.0.0/                # 自動更新版（安定版）
-    └── v4.0.0/                # 改行機能版（最新）
-        ├── README.md          # 詳細な使用方法
-        ├── manifest.json      # Chrome拡張設定
-        ├── src/              # メインソースコード
-        ├── prompts/          # プロンプトファイル群
-        └── scripts/          # 自動更新スクリプト
+├── src/                    # Chrome拡張機能メインファイル
+│   ├── content.js         # コンテンツスクリプト
+│   ├── popup.html         # 設定ポップアップ
+│   ├── popup.js           # 設定ロジック
+│   └── styles.css         # 拡張機能スタイル
+├── docs/                   # GitHub Pages編集サイト
+│   ├── index.html         # エディターUI
+│   ├── script.js          # エディターロジック
+│   └── style.css          # エディタースタイル
+├── icons/                  # 拡張機能アイコン
+├── manifest.json           # Chrome拡張機能設定
+└── versions/               # 過去バージョン履歴
 ```
 
-## 📋 各バージョンの特徴
+## 📋 データ構造
 
-| バージョン | 管理方式 | 特徴 |
-|-----------|----------|------|
-| **v4.0.0** | 改行機能版 | Claude.ai・ChatGPTで改行表示対応 |
-| **v3.0.0** | 自動更新（安定版） | ダブルクリック実行、完全自動化 |
-| v2.0.0 | フォルダベース | 3階層構造、手動コード更新 |
-| v1.0.0 | JSON形式 | 単一ファイル管理、シンプル |
+プロンプトデータは以下の4フィールドで管理：
 
-## 🚀 Ver4.0.0 改行機能について
+```javascript
+{
+  title: "プロンプトタイトル",
+  prompt: "実際のプロンプト本文",
+  memo: "説明・メモ",
+  tags: ["タグ1", "タグ2"]
+}
+```
 
-**改行機能の特徴:**
-- **Claude.ai**: 改行が表示される（手動コピー&ペーストより少ないが大幅改善）
-- **ChatGPT**: 完全な改行表示
-- **Gemini等**: Ver3.0.0と同じ動作（安定）
+## 🔧 開発・カスタマイズ
 
-**新しいプロンプトを追加したい場合:**
+### ローカル開発
+1. ファイルを編集
+2. Chrome拡張機能を再読み込み
+3. 変更を確認
 
-1. **プロンプトファイル追加**
-   ```
-   versions/v4.0.0/prompts/001_事前設定/001_基本設定/004_新しいプロンプト.txt
-   ```
+### GitHub Pagesデプロイ
+1. `docs/` フォルダの変更をコミット
+2. GitHub リポジトリにプッシュ
+3. GitHub Pages設定で `/docs` フォルダを指定
 
-2. **自動更新実行**
-   ```
-   versions/v4.0.0/scripts/update-prompts.command をダブルクリック（macOS）
-   versions/v4.0.0/scripts/update-prompts.bat をダブルクリック（Windows）
-   ```
+### 新しいAIサイト対応
+1. `manifest.json` の `matches` に URL パターンを追加
+2. `src/content.js` の `detectAISite()` に判定ロジックを追加
+3. `findTextarea()` に対象サイトのセレクターを追加
 
-3. **Chrome拡張再インストール**
-   - Chrome拡張機能を削除
-   - `versions/v4.0.0/` フォルダで再インストール
+## 📈 バージョン履歴
 
-## 📖 詳細ドキュメント
+- **v6.0.0** (2024-09-13): GitHub Pages連携、4フィールド管理、モダンUI
+- **v5.0.0**: フォルダベース管理システム、自動更新機能
+- **v4.0.0**: 改行表示機能対応
+- **v3.0.0**: 3階層プロンプト管理、対応サイト拡張
 
-- **Ver4.0.0詳細**: [`versions/v4.0.0/README.md`](versions/v4.0.0/README.md)
-- **Ver3.0.0詳細**: [`versions/v3.0.0/README.md`](versions/v3.0.0/README.md)
-- **バージョン情報**: [`VERSION_INFO.md`](VERSION_INFO.md)
-- **開発者向け**: [`CLAUDE.md`](CLAUDE.md)
-- **失敗事例・学習記録**: [`versions/v4.0.0/docs/fails.md`](versions/v4.0.0/docs/fails.md)
+## 🤝 コントリビューション
 
-## 🎯 推奨使用バージョン
+1. Fork this repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-**Ver4.0.0** を推奨します：
-- ✅ Claude.ai・ChatGPTで改行表示
-- ✅ 全対応サイトで動作確認済み
-- ✅ 自動更新機能搭載
-- ✅ Ver3.0.0の全機能を継承
+## 📄 ライセンス
 
-**Ver3.0.0（安定版）** も引き続き利用可能：
-- ✅ 改行機能不要の場合
-- ✅ 最大限の安定性を重視する場合
+MIT License
+
+## 🔗 関連リンク
+
+- **GitHub Pages編集サイト**: https://ganta9.github.io/chrome_ext-ai_prompt_helper/
+- **リポジトリ**: https://github.com/ganta9/chrome_ext-ai_prompt_helper
+- **Issues**: https://github.com/ganta9/chrome_ext-ai_prompt_helper/issues
+
+---
+
+**🧑‍💻 Generated with Claude Code (claude.ai/code)**
