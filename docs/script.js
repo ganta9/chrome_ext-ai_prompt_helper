@@ -126,19 +126,26 @@ function setupEventListeners() {
 
 async function loadPrompts() {
     try {
+        // 🔍 デバッグ: 現在のローカルストレージ状況を確認
+        const allKeys = Object.keys(localStorage);
+        console.log('🔍 デバッグ: localStorage全体:', allKeys);
+
         // ローカルストレージから読み込み
         const savedData = localStorage.getItem('promptsData');
+        console.log('🔍 デバッグ: savedData raw:', savedData ? savedData.substring(0, 200) + '...' : null);
+
         if (savedData) {
             const data = JSON.parse(savedData);
             prompts = data.prompts || [];
-            console.log('ローカルデータ読み込み:', prompts.length, '個のプロンプト');
+            console.log('✅ ローカルデータ読み込み:', prompts.length, '個のプロンプト');
+            console.log('🔍 デバッグ: 読み込んだプロンプトタイトル:', prompts.map(p => p.title));
         } else {
             // サンプルデータを作成
             prompts = createSampleData();
             await savePrompts();
-            console.log('サンプルデータ作成');
+            console.log('✅ サンプルデータ作成');
         }
-        
+
         // タグリストを更新
         updateAllTags();
         
@@ -418,7 +425,7 @@ function addSuggestedTag(tag) {
     document.getElementById('tag-suggestions').innerHTML = '';
 }
 
-function handleSubmit(e) {
+async function handleSubmit(e) {
     e.preventDefault();
     
     const title = document.getElementById('prompt-title').value.trim();
@@ -443,7 +450,7 @@ function handleSubmit(e) {
     if (currentEditId) {
         updatePrompt(currentEditId, promptData);
     } else {
-        addPrompt(promptData);
+        await addPrompt(promptData);
     }
 }
 
@@ -476,23 +483,39 @@ function handleKeyboard(e) {
 // CRUD操作
 // ==========================================================================
 
-function addPrompt(data) {
+async function addPrompt(data) {
+    console.log('🔍 デバッグ: addPrompt開始 - 追加前のプロンプト数:', prompts.length);
+
     const newPrompt = {
         id: Date.now(), // 簡易ID生成
         ...data,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     };
-    
+
+    console.log('🔍 デバッグ: 新しいプロンプト:', newPrompt);
+
     prompts.unshift(newPrompt);
+    console.log('🔍 デバッグ: 追加後のプロンプト数:', prompts.length);
+    console.log('🔍 デバッグ: 現在の全プロンプトタイトル:', prompts.map(p => p.title));
+
     updateAllTags();
-    savePrompts();
-    
+    const saveResult = await savePrompts();
+    console.log('🔍 デバッグ: savePrompts結果:', saveResult);
+
+    // 保存直後のローカルストレージ確認
+    const savedCheck = localStorage.getItem('promptsData');
+    if (savedCheck) {
+        const parsed = JSON.parse(savedCheck);
+        console.log('🔍 デバッグ: 保存確認 - localStorage内プロンプト数:', parsed.prompts.length);
+        console.log('🔍 デバッグ: 保存確認 - タイトル:', parsed.prompts.map(p => p.title));
+    }
+
     closeModal();
     updateTagList();
     renderPrompts();
     updateCounts();
-    
+
     showNotification('プロンプトを追加しました', 'success');
 }
 
