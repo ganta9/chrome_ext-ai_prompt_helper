@@ -427,31 +427,43 @@ function addSuggestedTag(tag) {
 
 async function handleSubmit(e) {
     e.preventDefault();
-    
+
+    console.log('🔍 デバッグ: handleSubmit開始');
+    console.log('🔍 デバッグ: currentEditId:', currentEditId);
+    console.log('🔍 デバッグ: 送信前のプロンプト数:', prompts.length);
+
     const title = document.getElementById('prompt-title').value.trim();
     const content = document.getElementById('prompt-content').value.trim();
     const memo = document.getElementById('prompt-memo').value.trim();
     const tagsInput = document.getElementById('prompt-tags').value.trim();
-    
+
+    console.log('🔍 デバッグ: フォームデータ:', { title, content, memo, tagsInput });
+
     if (!title || !content) {
         showNotification('タイトルとプロンプトは必須です', 'error');
         return;
     }
-    
+
     const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [];
-    
+
     const promptData = {
         title,
         prompt: content,
         memo: memo || '',
         tags
     };
-    
+
+    console.log('🔍 デバッグ: 作成されたpromptData:', promptData);
+
     if (currentEditId) {
+        console.log('🔍 デバッグ: 編集モードでupdatePromptを呼び出し');
         updatePrompt(currentEditId, promptData);
     } else {
+        console.log('🔍 デバッグ: 新規追加モードでaddPromptを呼び出し');
         await addPrompt(promptData);
     }
+
+    console.log('🔍 デバッグ: handleSubmit完了');
 }
 
 function handleKeyboard(e) {
@@ -485,6 +497,8 @@ function handleKeyboard(e) {
 
 async function addPrompt(data) {
     console.log('🔍 デバッグ: addPrompt開始 - 追加前のプロンプト数:', prompts.length);
+    console.log('🔍 デバッグ: prompts配列の型:', Array.isArray(prompts), typeof prompts);
+    console.log('🔍 デバッグ: prompts配列の中身:', prompts);
 
     const newPrompt = {
         id: Date.now(), // 簡易ID生成
@@ -495,7 +509,16 @@ async function addPrompt(data) {
 
     console.log('🔍 デバッグ: 新しいプロンプト:', newPrompt);
 
-    prompts.unshift(newPrompt);
+    // 🚨 修正: 確実に配列に追加する方法に変更
+    if (Array.isArray(prompts)) {
+        prompts.unshift(newPrompt);
+        console.log('🔍 デバッグ: unshift実行完了');
+    } else {
+        console.error('🚨 エラー: prompts が配列ではありません!', typeof prompts, prompts);
+        prompts = [newPrompt]; // 緊急修正
+        console.log('🔍 デバッグ: prompts配列を再初期化しました');
+    }
+
     console.log('🔍 デバッグ: 追加後のプロンプト数:', prompts.length);
     console.log('🔍 デバッグ: 現在の全プロンプトタイトル:', prompts.map(p => p.title));
 
