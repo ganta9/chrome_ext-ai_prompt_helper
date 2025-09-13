@@ -786,6 +786,17 @@ function closeDetailModal() {
     }
 }
 
+// showEditModal関数（editFromDetailで使用）
+function showEditModal(id) {
+    editPrompt(id);
+}
+
+// confirmDelete関数（削除確認モーダルで使用）
+function confirmDelete() {
+    // onclick で設定された deletePrompt 関数が呼ばれるため、ここでは何もしない
+    // 実際の削除処理は showDeleteModal で設定される
+}
+
 // ==========================================================================
 // Window API エクスポート
 // ==========================================================================
