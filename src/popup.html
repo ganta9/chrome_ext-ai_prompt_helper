@@ -8,6 +8,7 @@
         :root {
             --bg-primary: #1a1a1a;
             --bg-secondary: #2d2d2d;
+            --bg-card: #363636;
             --text-primary: #ffffff;
             --text-secondary: #cccccc;
             --text-muted: #999999;
@@ -16,44 +17,76 @@
             --button-hover: #3730a3;
             --border: #4a4a4a;
             --success: #10b981;
-            --danger: #ef4444;
             --warning: #f59e0b;
+            --danger: #ef4444;
             --border-radius: 6px;
         }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             width: 350px;
+            min-height: 500px;
             background: var(--bg-primary);
             color: var(--text-primary);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
+            line-height: 1.5;
         }
+
         .header {
             background: var(--bg-secondary);
             padding: 20px;
             border-bottom: 1px solid var(--border);
             text-align: center;
         }
+
         .header h1 {
             font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
+
         .header .version {
             color: var(--text-muted);
             font-size: 12px;
+            font-weight: 400;
         }
+
         .content {
             padding: 20px;
         }
+
         .section {
             margin-bottom: 24px;
         }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
         .section-title {
             font-size: 14px;
             font-weight: 600;
+            color: var(--text-primary);
             margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
+
         .form-group {
             margin-bottom: 16px;
         }
+
         .form-label {
             display: block;
             font-size: 13px;
@@ -61,6 +94,7 @@
             color: var(--text-secondary);
             margin-bottom: 6px;
         }
+
         .form-input {
             width: 100%;
             background: var(--bg-card);
@@ -68,7 +102,83 @@
             border-radius: var(--border-radius);
             color: var(--text-primary);
             padding: 8px 10px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
         }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-checkbox {
+            margin-right: 8px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .sheets-settings {
+            transition: opacity 0.3s ease;
+        }
+
+        .sheets-config {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .inline-group {
+            display: flex;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .inline-group .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .inline-group .form-group:last-child {
+            flex: 0 0 auto;
+        }
+
+        .form-select {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            padding: 8px 10px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .sync-status {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
         .btn {
             background: var(--button);
             color: white;
@@ -76,42 +186,217 @@
             padding: 8px 14px;
             border-radius: var(--border-radius);
             font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            justify-content: center;
         }
-        .btn:hover { background: var(--button-hover); }
+
+        .btn:hover {
+            background: var(--button-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
         .btn-secondary {
             background: var(--bg-card);
             border: 1px solid var(--border);
             color: var(--text-secondary);
         }
-        .btn-secondary:hover { background: var(--border); }
-        .btn-group { display: flex; gap: 8px; }
-        .btn-group .btn { flex: 1; justify-content: center; }
-        .btn-full { width: 100%; }
+
+        .btn-secondary:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-full {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+        }
+
         .status {
             padding: 10px 12px;
             border-radius: var(--border-radius);
             font-size: 12px;
+            font-weight: 500;
             margin-top: 8px;
             text-align: center;
         }
-        .status.success { background: rgba(16, 185, 129, 0.15); color: var(--success); }
-        .status.error { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .status.warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-        .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+        .status.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .info-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 2px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 20px 0;
+        }
+
+        .footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            font-size: 12px;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent);
+        }
+
+        /* ローディング状態 */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            margin: -8px 0 0 -8px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* アニメーション */
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>📝 AI Prompt Helper</h1>
+        <h1>
+            <span>📝</span>
+            AI Prompt Helper
+        </h1>
         <div class="version">v6.0.0</div>
     </div>
 
     <div class="content">
+        <!-- GitHub Pages設定セクション -->
         <div class="section">
-            <div class="section-title">🔗 閲覧サイト設定</div>
+            <div class="section-title">
+                <span>🔗</span>
+                GitHub Pages設定
+            </div>
+            
             <div class="form-group">
-                <label class="form-label" for="github-pages-url">閲覧サイトURL</label>
+                <label class="form-label" for="github-pages-url">編集サイトURL</label>
                 <input 
                     type="text" 
                     id="github-pages-url" 
@@ -119,18 +404,142 @@
                     placeholder="https://ganta9.github.io/chrome_ext-ai_prompt_helper/"
                 >
             </div>
+            
             <div class="btn-group">
-                <button id="save-settings" class="btn">保存</button>
+                <button id="save-settings" class="btn btn-success">保存</button>
                 <button id="test-connection" class="btn btn-secondary">接続テスト</button>
             </div>
+            
             <div id="settings-status" class="status" style="display: none;"></div>
         </div>
 
         <div class="divider"></div>
 
+        <!-- Google Sheets設定セクション -->
+        <div class="section sheets-settings">
+            <div class="section-title">
+                <span>📈</span>
+                Google Sheets連携
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="sheets-enabled" class="form-checkbox">
+                <label class="checkbox-label" for="sheets-enabled">Google Sheets連携を有効にする</label>
+            </div>
+
+            <div class="sheets-config">
+                <div class="form-group">
+                    <label class="form-label" for="spreadsheet-id">スプレッドシートID</label>
+                    <input
+                        type="text"
+                        id="spreadsheet-id"
+                        class="form-input"
+                        placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz"
+                        disabled
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="gas-url">Google Apps Script URL</label>
+                    <input
+                        type="text"
+                        id="gas-url"
+                        class="form-input"
+                        placeholder="https://script.google.com/macros/s/.../exec"
+                        disabled
+                    >
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="auto-sync-enabled" class="form-checkbox" disabled>
+                    <label class="checkbox-label" for="auto-sync-enabled">自動同期を有効にする</label>
+                </div>
+
+                <div class="inline-group">
+                    <div class="form-group">
+                        <label class="form-label" for="auto-sync-interval">同期間隔</label>
+                        <select id="auto-sync-interval" class="form-select" disabled>
+                            <option value="1">1分</option>
+                            <option value="5" selected>5分</option>
+                            <option value="10">10分</option>
+                            <option value="30">30分</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="save-sheets-settings" class="btn btn-success" disabled>保存</button>
+                    <button id="test-sheets-connection" class="btn btn-secondary" disabled>接続テスト</button>
+                </div>
+
+                <div class="sync-status">
+                    <span>最終Google Sheets同期:</span>
+                    <span id="last-sheets-sync">未同期</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- 統計情報セクション -->
         <div class="section">
-            <div class="section-title">⚡ クイックアクション</div>
-            <button id="open-editor" class="btn btn-full">閲覧サイトを開く</button>
+            <div class="section-title">
+                <span>📊</span>
+                プロンプト統計
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-prompts">-</div>
+                    <div class="stat-label">総プロンプト数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="last-sync">-</div>
+                    <div class="stat-label">最終同期</div>
+                </div>
+            </div>
+            
+            <button id="sync-now" class="btn btn-full">
+                <span>🔄</span>
+                今すぐ同期
+            </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- クイックアクションセクション -->
+        <div class="section">
+            <div class="section-title">
+                <span>⚡</span>
+                クイックアクション
+            </div>
+            
+            <button id="open-editor" class="btn btn-full">
+                <span>✏️</span>
+                編集サイトを開く
+            </button>
+            
+            <button id="show-help" class="btn btn-secondary btn-full">
+                <span>❓</span>
+                使い方ガイド
+            </button>
+        </div>
+
+        <!-- 情報ボックス -->
+        <div class="info-box">
+            <strong>使い方:</strong><br>
+            1. GitHub Pages URLを設定<br>
+            2. (オプション) Google Sheets連携を有効化<br>
+            3. AIサイトで📝ボタンをクリック<br>
+            4. プロンプトを選択して自動入力
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="footer-links">
+            <a href="#" id="github-link">GitHub</a>
+            <a href="#" id="docs-link">ドキュメント</a>
+            <a href="#" id="feedback-link">フィードバック</a>
         </div>
     </div>
 
