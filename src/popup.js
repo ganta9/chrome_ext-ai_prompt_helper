@@ -59,6 +59,7 @@ function setupEventListeners() {
 
     // 同期関連
     document.getElementById('sync-now').addEventListener('click', syncNow);
+    document.getElementById('clear-data').addEventListener('click', clearAllData);
     
     // クイックアクション
     document.getElementById('open-editor').addEventListener('click', openEditor);
@@ -716,6 +717,43 @@ function formatDateTime(isoString) {
 }
 
 // ==========================================================================
+// データクリア機能
+// ==========================================================================
+
+async function clearAllData() {
+    if (!confirm('すべてのプロンプトデータとキャッシュをクリアしますか？
+
+この操作は元に戻せません。')) {
+        return;
+    }
+
+    try {
+        showStatus('データをクリア中...', 'loading');
+
+        // Chrome拡張のストレージをクリア
+        await chrome.storage.sync.clear();
+        await chrome.storage.local.clear();
+
+        console.log('✅ Chrome拡張のストレージをクリア完了');
+
+        // 統計情報をリセット
+        document.getElementById('total-prompts').textContent = '0';
+        document.getElementById('last-sync').textContent = '未同期';
+
+        showStatus('データクリアが完了しました', 'success');
+
+        // 設定を再読み込み（デフォルト値で初期化）
+        setTimeout(async () => {
+            await initializePopup();
+        }, 1000);
+
+    } catch (error) {
+        console.error('データクリアエラー:', error);
+        showStatus('データクリアに失敗しました: ' + error.message, 'error');
+    }
+}
+
+// ==========================================================================
 // デバッグ用
 // ==========================================================================
 
@@ -725,6 +763,7 @@ if (typeof window !== 'undefined') {
         saveSettings,
         testConnection,
         updateStats,
+        clearAllData,
         // Google Sheets関連
         loadSheetsSettings,
         saveSheetsSettings,
