@@ -105,6 +105,7 @@ function setupEventListeners() {
     // ヘッダーアクション
     document.getElementById('add-prompt-btn').addEventListener('click', () => showAddModal());
     document.getElementById('download-btn').addEventListener('click', downloadJSON);
+    document.getElementById('settings-btn').addEventListener('click', showSettingsModal);
     document.getElementById('search-input').addEventListener('input', handleSearch);
     
     // サイドバー
@@ -1010,6 +1011,72 @@ function showEditModal(id) {
 function confirmDelete() {
     // onclick で設定された deletePrompt 関数が呼ばれるため、ここでは何もしない
     // 実際の削除処理は showDeleteModal で設定される
+}
+
+// ==========================================================================
+// 設定モーダル
+// ==========================================================================
+
+function showSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+
+    // 現在の設定を読み込み
+    loadSettingsToModal();
+
+    modal.style.display = 'flex';
+
+    // イベントリスナー設定
+    document.getElementById('settings-close').onclick = closeSettingsModal;
+    document.getElementById('settings-cancel').onclick = closeSettingsModal;
+    document.getElementById('settings-save').onclick = saveSettingsFromModal;
+    document.getElementById('test-connection-btn').onclick = testGoogleSheetsConnection;
+    document.getElementById('sync-now-btn').onclick = syncNowManual;
+}
+
+function closeSettingsModal() {
+    document.getElementById('settings-modal').style.display = 'none';
+}
+
+function loadSettingsToModal() {
+    // LocalStorageから設定を読み込み
+    const savedSettings = localStorage.getItem('syncSettings');
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        document.getElementById('sheets-enabled').checked = settings.enabled || false;
+        document.getElementById('sheets-script-url').value = settings.scriptUrl || '';
+        document.getElementById('auto-sync-enabled').checked = settings.autoSyncEnabled !== false;
+        document.getElementById('sync-interval').value = settings.autoSyncInterval ? (settings.autoSyncInterval / 60000) : 5;
+    }
+}
+
+function saveSettingsFromModal() {
+    const enabled = document.getElementById('sheets-enabled').checked;
+    const scriptUrl = document.getElementById('sheets-script-url').value;
+    const autoSyncEnabled = document.getElementById('auto-sync-enabled').checked;
+    const syncInterval = parseInt(document.getElementById('sync-interval').value) * 60000;
+
+    // 設定を更新
+    syncSettings = {
+        enabled: enabled,
+        scriptUrl: scriptUrl,
+        autoSyncEnabled: autoSyncEnabled,
+        autoSyncInterval: syncInterval,
+        lastSyncTime: syncSettings.lastSyncTime
+    };
+
+    // LocalStorageに保存
+    localStorage.setItem('syncSettings', JSON.stringify(syncSettings));
+
+    // Google Sheets連携を初期化または無効化
+    if (enabled && scriptUrl) {
+        initializeGoogleSheets();
+        showNotification('Google Sheets連携が有効になりました', 'success');
+    } else {
+        disableGoogleSheets();
+        showNotification('Google Sheets連携が無効になりました', 'info');
+    }
+
+    closeSettingsModal();
 }
 
 // ==========================================================================
