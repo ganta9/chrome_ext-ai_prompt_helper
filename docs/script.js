@@ -1024,7 +1024,9 @@ class SheetsConnector {
 
     async getPrompts() {
         console.log('📥 Google Sheets からプロンプト取得開始');
-        return await this.makeRequest('getPrompts');
+        const response = await this.makeRequest('getPrompts');
+        // レスポンスからデータ配列を抽出
+        return response.data || [];
     }
 
     async addPrompt(data) {
