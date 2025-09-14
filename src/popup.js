@@ -95,7 +95,7 @@ async function loadSettings() {
 
         // GitHub Pages URLを設定
         const urlInput = document.getElementById('github-pages-url');
-        urlInput.value = result.githubPagesUrl || '';
+        urlInput.value = result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
 
         // 統計情報を設定
         if (result.lastSync) {
@@ -123,10 +123,10 @@ async function loadSheetsSettings() {
             'lastSheetsSync'
         ]);
 
-        // Google Sheets設定をフォームに設定
-        document.getElementById('sheets-enabled').checked = result.sheetsEnabled || false;
-        document.getElementById('spreadsheet-id').value = result.spreadsheetId || '';
-        document.getElementById('gas-url').value = result.googleAppsScriptUrl || '';
+        // Google Sheets設定をフォームに設定（デフォルト値を設定）
+        document.getElementById('sheets-enabled').checked = result.sheetsEnabled !== undefined ? result.sheetsEnabled : true;
+        document.getElementById('spreadsheet-id').value = result.spreadsheetId || '10KOk1aWODGfkH186Gxr17cA6zNxZGhZVecQAdxhOBGM';
+        document.getElementById('gas-url').value = result.googleAppsScriptUrl || 'https://script.google.com/macros/s/AKfycbx0eSQD8AZgj5ClYR8eEkNKOTa9b4w2a93gMU9KyFrXB5LShXoOB01wsrvc3LDtidl-MA/exec';
         document.getElementById('auto-sync-enabled').checked = result.autoSyncEnabled !== false; // default: true
         document.getElementById('auto-sync-interval').value = result.autoSyncInterval || 5; // default: 5分
 

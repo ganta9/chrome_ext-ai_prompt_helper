@@ -5,7 +5,25 @@
       "Bash(ls:*)",
       "Bash(mkdir:*)",
       "Bash(cp:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "mcp__serena__think_about_task_adherence",
+      "mcp__serena__activate_project",
+      "mcp__serena__read_file",
+      "mcp__serena__replace_regex",
+      "mcp__serena__think_about_whether_you_are_done",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebSearch",
+      "mcp__serena__search_for_pattern",
+      "Bash(git add:*)",
+      "Read(//Users/gantaku/Workspaces/.claude/**)",
+      "Read(//Users/gantaku/Workspaces/lunch-chooser/**)",
+      "Bash(grep:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(node:*)",
+      "Bash(test:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }
