@@ -330,53 +330,51 @@ async function testSheetsConnection() {
         setLoading(true);
         showStatus('Google Sheetsへの接続をテスト中...', 'warning');
 
-        // JSONPリクエストでテスト
-        const testPromise = new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                cleanup();
-                reject(new Error('タイムアウト: 30秒以内に応答がありませんでした'));
-            }, 30000);
+        // fetch APIを使用してテスト（Manifest V3対応）
+        const testUrl = `${gasUrl}?action=getPrompts`;
 
-            const callbackName = 'testCallback_' + Date.now();
-
-            window[callbackName] = (response) => {
-                cleanup();
-                if (response.success) {
-                    resolve(response);
-                } else {
-                    reject(new Error(response.error || '不明なエラー'));
-                }
-            };
-
-            function cleanup() {
-                clearTimeout(timeout);
-                if (window[callbackName]) {
-                    delete window[callbackName];
-                }
-                const script = document.querySelector(`script[src*="${callbackName}"]`);
-                if (script && script.parentNode) {
-                    script.parentNode.removeChild(script);
-                }
-            }
-
-            const script = document.createElement('script');
-            const testUrl = `${gasUrl}?action=getPrompts&callback=${callbackName}`;
-            script.src = testUrl;
-            script.onerror = () => {
-                cleanup();
-                reject(new Error('Google Apps Scriptへのリクエストに失敗しました'));
-            };
-
-            document.head.appendChild(script);
-
-            setTimeout(() => {
-                if (script.parentNode) {
-                    script.parentNode.removeChild(script);
-                }
-            }, 5000);
+        const response = await fetch(testUrl, {
+            method: 'GET',
+            mode: 'cors',
+            headers: {
+                'Accept': 'application/javascript, text/javascript, */*'
+            },
+            credentials: 'omit'
         });
 
-        const response = await testPromise;
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: サーバーからエラー応答`);
+        }
+
+        const responseText = await response.text();
+        console.log('Google Apps Script応答:', responseText);
+
+        // JSONP応答の解析を試行
+        let jsonData;
+
+        // パターン1: callback(...)の形式
+        const callbackMatch = responseText.match(/callback\((.+)\);?\s*$/);
+        if (callbackMatch) {
+            try {
+                jsonData = JSON.parse(callbackMatch[1]);
+            } catch (e) {
+                console.warn('JSONP解析失敗:', e);
+            }
+        }
+
+        // パターン2: 直接JSON
+        if (!jsonData) {
+            try {
+                jsonData = JSON.parse(responseText);
+            } catch (e) {
+                console.warn('JSON解析失敗:', e);
+                throw new Error('Google Apps Scriptからの応答を解析できませんでした');
+            }
+        }
+
+        if (!jsonData.success) {
+            throw new Error(jsonData.error || 'Google Apps Scriptからエラー応答');
+        }
 
         // 成功情報を保存
         await chrome.storage.sync.set({
@@ -386,15 +384,19 @@ async function testSheetsConnection() {
 
         await loadSheetsSettings(); // UI更新
 
-        const promptCount = response.data ? response.data.length : 0;
+        const promptCount = jsonData.data ? jsonData.data.length : 0;
         showStatus(`接続成功: ${promptCount}件のプロンプトを確認しました`, 'success');
 
     } catch (error) {
         console.error('Google Sheets接続テストエラー:', error);
         let errorMessage = 'Google Sheetsへの接続に失敗しました';
 
-        if (error.message.includes('タイムアウト')) {
-            errorMessage = 'タイムアウト: Google Apps Scriptのデプロイと権限設定を確認してください';
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMessage = 'ネットワークエラー: Google Apps ScriptのURLとデプロイ設定を確認してください';
+        } else if (error.message.includes('CORS')) {
+            errorMessage = 'CORS制限: Google Apps Scriptの「アクセスできるユーザー: 全員」設定を確認してください';
+        } else if (error.message.includes('HTTP')) {
+            errorMessage = error.message + ' - Google Apps Scriptが正しくデプロイされているか確認してください';
         } else if (error.message) {
             errorMessage += ': ' + error.message;
         }
@@ -478,46 +480,35 @@ async function syncNow() {
         // Google Sheetsへの同期（有効な場合）
         if (sheetsEnabled && gasUrl) {
             try {
-                const sheetsTestPromise = new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        cleanup();
-                        reject(new Error('タイムアウト'));
-                    }, 15000); // 15秒タイムアウト
-
-                    const callbackName = 'syncCallback_' + Date.now();
-
-                    window[callbackName] = (response) => {
-                        cleanup();
-                        if (response.success) {
-                            resolve(response);
-                        } else {
-                            reject(new Error(response.error || '不明なエラー'));
-                        }
-                    };
-
-                    function cleanup() {
-                        clearTimeout(timeout);
-                        if (window[callbackName]) {
-                            delete window[callbackName];
-                        }
-                        const script = document.querySelector(`script[src*="${callbackName}"]`);
-                        if (script && script.parentNode) {
-                            script.parentNode.removeChild(script);
-                        }
-                    }
-
-                    const script = document.createElement('script');
-                    const testUrl = `${gasUrl}?action=getPrompts&callback=${callbackName}`;
-                    script.src = testUrl;
-                    script.onerror = () => {
-                        cleanup();
-                        reject(new Error('リクエスト失敗'));
-                    };
-
-                    document.head.appendChild(script);
+                // fetch APIでGoogle Sheetsに同期（Manifest V3対応）
+                const syncUrl = `${gasUrl}?action=getPrompts`;
+                const response = await fetch(syncUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/javascript, text/javascript, */*'
+                    },
+                    credentials: 'omit'
                 });
 
-                const sheetsResponse = await sheetsTestPromise;
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const responseText = await response.text();
+
+                // JSONP応答の解析
+                let sheetsResponse;
+                const callbackMatch = responseText.match(/callback\((.+)\);?\s*$/);
+                if (callbackMatch) {
+                    sheetsResponse = JSON.parse(callbackMatch[1]);
+                } else {
+                    sheetsResponse = JSON.parse(responseText);
+                }
+
+                if (!sheetsResponse.success) {
+                    throw new Error(sheetsResponse.error || '不明なエラー');
+                }
                 results.sheets = true;
 
                 // プロンプト数を更新
