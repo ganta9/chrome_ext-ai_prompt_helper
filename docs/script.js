@@ -13,6 +13,17 @@ let currentFilter = 'all';
 let currentEditId = null;
 let searchQuery = '';
 
+// Google Sheets連携
+let sheetsConnector = null;
+let syncManager = null;
+let syncSettings = {
+    enabled: false,
+    scriptUrl: '',
+    autoSyncEnabled: true,
+    autoSyncInterval: 5 * 60 * 1000, // 5分
+    lastSyncTime: null
+};
+
 
 
 // ==========================================================================
@@ -47,26 +58,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initializeApp() {
     try {
         showLoading(true);
-        console.log('🔄 ステップ1: データ読み込み開始');
-        
+        console.log('🔄 ステップ1: 設定読み込み開始');
+
+        // 同期設定の読み込み
+        loadSyncSettings();
+        console.log('✅ ステップ1-1完了: 同期設定読み込み');
+
+        // Google Sheets連携初期化
+        if (syncSettings.enabled && syncSettings.scriptUrl) {
+            initializeSheetsConnection();
+            console.log('✅ ステップ1-2完了: Google Sheets連携初期化');
+        }
+
+        console.log('🔄 ステップ2: データ読み込み開始');
+
         // サンプルデータまたは既存データの読み込み
         await loadPrompts();
-        console.log('✅ ステップ1完了: データ読み込み成功');
-        
-        console.log('🔄 ステップ2: UI更新開始');
+        console.log('✅ ステップ2完了: データ読み込み成功');
+
+        console.log('🔄 ステップ3: UI更新開始');
         // UI更新
         updateTagList();
-        console.log('✅ ステップ2-1完了: タグリスト更新');
-        
+        console.log('✅ ステップ3-1完了: タグリスト更新');
+
         renderPrompts();
-        console.log('✅ ステップ2-2完了: プロンプト描画');
-        
+        console.log('✅ ステップ3-2完了: プロンプト描画');
+
         updateCounts();
-        console.log('✅ ステップ2-3完了: カウント更新');
-        
+        console.log('✅ ステップ3-3完了: カウント更新');
+
         showLoading(false);
         console.log('✅ 初期化完全成功');
-        
+
     } catch (error) {
         console.error('💥 initializeApp内部エラー:', error);
         showLoading(false);
@@ -990,6 +1013,426 @@ function confirmDelete() {
 }
 
 // ==========================================================================
+// Google Sheets連携クラス
+// ==========================================================================
+
+class SheetsConnector {
+    constructor(scriptUrl) {
+        this.scriptUrl = scriptUrl;
+        this.requestQueue = [];
+        this.isProcessing = false;
+    }
+
+    async getPrompts() {
+        console.log('📥 Google Sheets からプロンプト取得開始');
+        return await this.makeRequest('getPrompts');
+    }
+
+    async addPrompt(data) {
+        console.log('📤 Google Sheets へプロンプト追加:', data.title);
+        return await this.makeRequest('addPrompt', data);
+    }
+
+    async updatePrompt(id, data) {
+        console.log('📤 Google Sheets でプロンプト更新:', id, data.title);
+        return await this.makeRequest('updatePrompt', { id, ...data });
+    }
+
+    async deletePrompt(id) {
+        console.log('📤 Google Sheets でプロンプト削除:', id);
+        return await this.makeRequest('deletePrompt', { id });
+    }
+
+    makeRequest(action, params = {}) {
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('リクエストタイムアウト'));
+                // コールバック関数をクリアアップ
+                delete window[callbackName];
+            }, 30000); // 30秒タイムアウト
+
+            const callbackName = 'callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+            window[callbackName] = (response) => {
+                clearTimeout(timeout);
+                delete window[callbackName];
+
+                try {
+                    if (response.success) {
+                        console.log('✅ Google Sheets API 成功:', action);
+                        resolve(response);
+                    } else {
+                        console.error('❌ Google Sheets API エラー:', response.error);
+                        reject(new Error(response.error));
+                    }
+                } catch (error) {
+                    console.error('❌ レスポンス処理エラー:', error);
+                    reject(error);
+                }
+            };
+
+            // URLパラメータを構築
+            const urlParams = new URLSearchParams({
+                action,
+                callback: callbackName,
+                ...params
+            });
+
+            const requestUrl = `${this.scriptUrl}?${urlParams.toString()}`;
+            console.log('🌐 リクエストURL:', requestUrl.substring(0, 150) + '...');
+
+            // JSONP リクエストを作成
+            const script = document.createElement('script');
+            script.src = requestUrl;
+            script.onerror = () => {
+                clearTimeout(timeout);
+                delete window[callbackName];
+                reject(new Error('Google Apps Script への接続に失敗しました'));
+            };
+
+            document.head.appendChild(script);
+
+            // スクリプトタグを5秒後に削除
+            setTimeout(() => {
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+            }, 5000);
+        });
+    }
+
+    async testConnection() {
+        try {
+            const result = await this.getPrompts();
+            console.log('✅ Google Sheets 接続テスト成功');
+            return { success: true, message: '接続テスト成功' };
+        } catch (error) {
+            console.error('❌ Google Sheets 接続テスト失敗:', error);
+            return { success: false, error: error.message };
+        }
+    }
+}
+
+class SyncManager {
+    constructor(sheetsConnector) {
+        this.sheets = sheetsConnector;
+        this.isProcessing = false;
+        this.autoSyncTimer = null;
+    }
+
+    async syncToSheets() {
+        if (this.isProcessing) {
+            console.log('⏳ 同期処理中のため、リクエストをスキップ');
+            return { success: false, message: '同期処理中です' };
+        }
+
+        this.isProcessing = true;
+        console.log('📤 ローカル → Google Sheets 同期開始');
+
+        try {
+            const results = { added: 0, updated: 0, errors: 0 };
+
+            for (const prompt of prompts) {
+                try {
+                    if (!prompt.syncId) {
+                        // 新規追加
+                        const result = await this.sheets.addPrompt({
+                            title: prompt.title,
+                            prompt: prompt.prompt,
+                            memo: prompt.memo || '',
+                            tags: prompt.tags ? prompt.tags.join(',') : ''
+                        });
+
+                        if (result.success && result.data) {
+                            prompt.syncId = result.data.id;
+                            results.added++;
+                        }
+                    } else {
+                        // 更新
+                        await this.sheets.updatePrompt(prompt.syncId, {
+                            title: prompt.title,
+                            prompt: prompt.prompt,
+                            memo: prompt.memo || '',
+                            tags: prompt.tags ? prompt.tags.join(',') : ''
+                        });
+                        results.updated++;
+                    }
+                } catch (error) {
+                    console.error('プロンプト同期エラー:', prompt.title, error);
+                    results.errors++;
+                }
+            }
+
+            // ローカルに保存
+            await savePrompts();
+            syncSettings.lastSyncTime = new Date().toISOString();
+            saveSyncSettings();
+
+            console.log('✅ ローカル → Google Sheets 同期完了:', results);
+            return { success: true, results };
+
+        } catch (error) {
+            console.error('❌ 同期処理エラー:', error);
+            return { success: false, error: error.message };
+        } finally {
+            this.isProcessing = false;
+        }
+    }
+
+    async syncFromSheets() {
+        if (this.isProcessing) {
+            console.log('⏳ 同期処理中のため、リクエストをスキップ');
+            return { success: false, message: '同期処理中です' };
+        }
+
+        this.isProcessing = true;
+        console.log('📥 Google Sheets → ローカル 同期開始');
+
+        try {
+            const response = await this.sheets.getPrompts();
+
+            if (!response.success) {
+                throw new Error(response.error);
+            }
+
+            const sheetsPrompts = response.data || [];
+            const results = { added: 0, updated: 0, errors: 0 };
+
+            // Google Sheets のプロンプトを処理
+            for (const sheetsPrompt of sheetsPrompts) {
+                try {
+                    const existingPrompt = prompts.find(p => p.syncId === sheetsPrompt.id);
+
+                    if (existingPrompt) {
+                        // 更新日時で比較
+                        const localUpdate = new Date(existingPrompt.updatedAt);
+                        const sheetsUpdate = new Date(sheetsPrompt.updated_at);
+
+                        if (sheetsUpdate > localUpdate) {
+                            // Google Sheetsの方が新しい
+                            existingPrompt.title = sheetsPrompt.title;
+                            existingPrompt.prompt = sheetsPrompt.prompt;
+                            existingPrompt.memo = sheetsPrompt.memo || '';
+                            existingPrompt.tags = sheetsPrompt.tags ? sheetsPrompt.tags.split(',').map(t => t.trim()).filter(t => t) : [];
+                            existingPrompt.updatedAt = sheetsPrompt.updated_at;
+                            results.updated++;
+                        }
+                    } else {
+                        // 新規プロンプト
+                        const newPrompt = {
+                            id: generateId(),
+                            syncId: sheetsPrompt.id,
+                            title: sheetsPrompt.title,
+                            prompt: sheetsPrompt.prompt,
+                            memo: sheetsPrompt.memo || '',
+                            tags: sheetsPrompt.tags ? sheetsPrompt.tags.split(',').map(t => t.trim()).filter(t => t) : [],
+                            createdAt: sheetsPrompt.created_at,
+                            updatedAt: sheetsPrompt.updated_at
+                        };
+
+                        prompts.unshift(newPrompt);
+                        results.added++;
+                    }
+                } catch (error) {
+                    console.error('プロンプト同期エラー:', sheetsPrompt.title, error);
+                    results.errors++;
+                }
+            }
+
+            // UI更新
+            updateAllTags();
+            updateTagList();
+            renderPrompts();
+            updateCounts();
+
+            // ローカルに保存
+            await savePrompts();
+            syncSettings.lastSyncTime = new Date().toISOString();
+            saveSyncSettings();
+
+            console.log('✅ Google Sheets → ローカル 同期完了:', results);
+            return { success: true, results };
+
+        } catch (error) {
+            console.error('❌ 同期処理エラー:', error);
+            return { success: false, error: error.message };
+        } finally {
+            this.isProcessing = false;
+        }
+    }
+
+    async fullSync() {
+        if (this.isProcessing) {
+            console.log('⏳ 同期処理中のため、リクエストをスキップ');
+            return { success: false, message: '同期処理中です' };
+        }
+
+        console.log('🔄 双方向同期開始');
+
+        try {
+            // まずGoogle Sheetsから最新データを取得
+            const fromSheetsResult = await this.syncFromSheets();
+
+            if (!fromSheetsResult.success) {
+                return fromSheetsResult;
+            }
+
+            // ローカルの変更をGoogle Sheetsに送信
+            const toSheetsResult = await this.syncToSheets();
+
+            const combinedResults = {
+                success: toSheetsResult.success,
+                fromSheets: fromSheetsResult.results,
+                toSheets: toSheetsResult.success ? toSheetsResult.results : null,
+                error: toSheetsResult.error
+            };
+
+            console.log('✅ 双方向同期完了:', combinedResults);
+            return combinedResults;
+
+        } catch (error) {
+            console.error('❌ 双方向同期エラー:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    startAutoSync() {
+        if (!syncSettings.autoSyncEnabled || !syncSettings.enabled) {
+            console.log('自動同期は無効です');
+            return;
+        }
+
+        console.log('🔄 自動同期を開始:', syncSettings.autoSyncInterval / 60000, '分間隔');
+
+        this.autoSyncTimer = setInterval(async () => {
+            console.log('🔄 自動同期実行中...');
+            const result = await this.fullSync();
+
+            if (result.success) {
+                console.log('✅ 自動同期成功');
+            } else {
+                console.error('❌ 自動同期失敗:', result.error);
+            }
+        }, syncSettings.autoSyncInterval);
+    }
+
+    stopAutoSync() {
+        if (this.autoSyncTimer) {
+            clearInterval(this.autoSyncTimer);
+            this.autoSyncTimer = null;
+            console.log('🛑 自動同期を停止しました');
+        }
+    }
+}
+
+// ==========================================================================
+// Google Sheets連携管理関数
+// ==========================================================================
+
+function loadSyncSettings() {
+    try {
+        const saved = localStorage.getItem('syncSettings');
+        if (saved) {
+            const settings = JSON.parse(saved);
+            syncSettings = { ...syncSettings, ...settings };
+            console.log('✅ 同期設定読み込み完了:', syncSettings);
+        }
+    } catch (error) {
+        console.error('同期設定読み込みエラー:', error);
+    }
+}
+
+function saveSyncSettings() {
+    try {
+        localStorage.setItem('syncSettings', JSON.stringify(syncSettings));
+        console.log('✅ 同期設定保存完了');
+    } catch (error) {
+        console.error('同期設定保存エラー:', error);
+    }
+}
+
+function initializeSheetsConnection() {
+    if (!syncSettings.scriptUrl) {
+        console.log('Google Apps Script URLが未設定のため、連携を初期化しません');
+        return;
+    }
+
+    try {
+        sheetsConnector = new SheetsConnector(syncSettings.scriptUrl);
+        syncManager = new SyncManager(sheetsConnector);
+
+        console.log('✅ Google Sheets連携初期化完了');
+
+        // 自動同期開始
+        if (syncSettings.autoSyncEnabled) {
+            syncManager.startAutoSync();
+        }
+
+    } catch (error) {
+        console.error('❌ Google Sheets連携初期化エラー:', error);
+    }
+}
+
+// 同期関連のユーティリティ関数
+function enableGoogleSheetsSync(scriptUrl) {
+    syncSettings.enabled = true;
+    syncSettings.scriptUrl = scriptUrl;
+    saveSyncSettings();
+
+    initializeSheetsConnection();
+    showNotification('Google Sheets連携を有効にしました', 'success');
+}
+
+function disableGoogleSheetsSync() {
+    syncSettings.enabled = false;
+    saveSyncSettings();
+
+    if (syncManager) {
+        syncManager.stopAutoSync();
+    }
+
+    sheetsConnector = null;
+    syncManager = null;
+
+    showNotification('Google Sheets連携を無効にしました', 'info');
+}
+
+async function testGoogleSheetsConnection() {
+    if (!sheetsConnector) {
+        showNotification('Google Sheets連携が設定されていません', 'error');
+        return { success: false, error: '連携未設定' };
+    }
+
+    showNotification('接続テスト中...', 'info');
+    const result = await sheetsConnector.testConnection();
+
+    if (result.success) {
+        showNotification('Google Sheetsとの接続に成功しました', 'success');
+    } else {
+        showNotification(`接続テストに失敗: ${result.error}`, 'error');
+    }
+
+    return result;
+}
+
+async function syncNowManual() {
+    if (!syncManager) {
+        showNotification('Google Sheets連携が設定されていません', 'error');
+        return;
+    }
+
+    showNotification('同期中...', 'info');
+    const result = await syncManager.fullSync();
+
+    if (result.success) {
+        const message = `同期完了: 追加${result.fromSheets?.added || 0}件, 更新${result.fromSheets?.updated || 0}件`;
+        showNotification(message, 'success');
+    } else {
+        showNotification(`同期エラー: ${result.error}`, 'error');
+    }
+}
+
+// ==========================================================================
 // Window API エクスポート
 // ==========================================================================
 
@@ -1005,6 +1448,14 @@ if (typeof window !== 'undefined') {
         editFromDetail,
         deleteFromDetail,
         selectPrompt,
-        closeDetailModal
+        closeDetailModal,
+        // Google Sheets連携
+        syncSettings,
+        enableGoogleSheetsSync,
+        disableGoogleSheetsSync,
+        testGoogleSheetsConnection,
+        syncNowManual,
+        sheetsConnector,
+        syncManager
     };
 }

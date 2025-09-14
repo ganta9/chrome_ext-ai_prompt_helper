@@ -117,6 +117,68 @@
             color: var(--text-muted);
         }
 
+        .form-checkbox {
+            margin-right: 8px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .sheets-settings {
+            transition: opacity 0.3s ease;
+        }
+
+        .sheets-config {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .inline-group {
+            display: flex;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .inline-group .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .inline-group .form-group:last-child {
+            flex: 0 0 auto;
+        }
+
+        .form-select {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            padding: 8px 10px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .sync-status {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
         .btn {
             background: var(--button);
             color: white;
@@ -353,6 +415,72 @@
 
         <div class="divider"></div>
 
+        <!-- Google Sheets設定セクション -->
+        <div class="section sheets-settings">
+            <div class="section-title">
+                <span>📈</span>
+                Google Sheets連携
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="sheets-enabled" class="form-checkbox">
+                <label class="checkbox-label" for="sheets-enabled">Google Sheets連携を有効にする</label>
+            </div>
+
+            <div class="sheets-config">
+                <div class="form-group">
+                    <label class="form-label" for="spreadsheet-id">スプレッドシートID</label>
+                    <input
+                        type="text"
+                        id="spreadsheet-id"
+                        class="form-input"
+                        placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz"
+                        disabled
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="gas-url">Google Apps Script URL</label>
+                    <input
+                        type="text"
+                        id="gas-url"
+                        class="form-input"
+                        placeholder="https://script.google.com/macros/s/.../exec"
+                        disabled
+                    >
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="auto-sync-enabled" class="form-checkbox" disabled>
+                    <label class="checkbox-label" for="auto-sync-enabled">自動同期を有効にする</label>
+                </div>
+
+                <div class="inline-group">
+                    <div class="form-group">
+                        <label class="form-label" for="auto-sync-interval">同期間隔</label>
+                        <select id="auto-sync-interval" class="form-select" disabled>
+                            <option value="1">1分</option>
+                            <option value="5" selected>5分</option>
+                            <option value="10">10分</option>
+                            <option value="30">30分</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="save-sheets-settings" class="btn btn-success" disabled>保存</button>
+                    <button id="test-sheets-connection" class="btn btn-secondary" disabled>接続テスト</button>
+                </div>
+
+                <div class="sync-status">
+                    <span>最終Google Sheets同期:</span>
+                    <span id="last-sheets-sync">未同期</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
         <!-- 統計情報セクション -->
         <div class="section">
             <div class="section-title">
@@ -401,8 +529,9 @@
         <div class="info-box">
             <strong>使い方:</strong><br>
             1. GitHub Pages URLを設定<br>
-            2. AIサイトで📝ボタンをクリック<br>
-            3. プロンプトを選択して自動入力
+            2. (オプション) Google Sheets連携を有効化<br>
+            3. AIサイトで📝ボタンをクリック<br>
+            4. プロンプトを選択して自動入力
         </div>
     </div>
 
