@@ -13,55 +13,7 @@ let currentFilter = 'all';
 let currentEditId = null;
 let searchQuery = '';
 
-// ==========================================================================
-// エラー処理とReact競合回避
-// ==========================================================================
 
-// サードパーティReactライブラリとの競合回避
-(function() {
-    'use strict';
-    
-    // Reactエラーハンドリング強化
-    window.addEventListener('error', function(e) {
-        if (e.message && e.message.includes('Minified React error')) {
-            console.warn('React error detected (external library):', e.message);
-            // エラーを無害化
-            e.preventDefault();
-            return false;
-        }
-    });
-
-    // Unhandled promise rejectionの処理
-    window.addEventListener('unhandledrejection', function(e) {
-        if (e.reason && e.reason.message && e.reason.message.includes('React')) {
-            console.warn('React promise rejection detected (external library):', e.reason);
-            // エラーを無害化
-            e.preventDefault();
-            return false;
-        }
-    });
-
-    // コンソールエラーも抑制
-    const originalError = console.error;
-    console.error = function(...args) {
-        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('Minified React error')) {
-            console.warn('Suppressed React error (external library):', args[0]);
-            return;
-        }
-        originalError.apply(console, args);
-    };
-
-    // グローバルエラーハンドラー強化
-    window.onerror = function(message, source, lineno, colno, error) {
-        if (message && message.includes('Minified React error')) {
-            console.warn('Global React error suppressed:', message);
-            return true; // エラーを処理済みとしてマーク
-        }
-        return false;
-    };
-
-    console.log('🛡️ React競合回避システム初期化完了');
-})();
 
 // ==========================================================================
 // 初期化
@@ -895,19 +847,11 @@ function selectPrompt(id) {
 // ユーティリティ関数
 // ==========================================================================
 
-// Hydration安全なID・時間生成
-let idCounter = 1;
 function generateId() {
-    // 完全に決定的なID生成（時間に依存しない）
-    return idCounter++;
+    return Date.now() + Math.random();
 }
 
 function getCurrentTimestamp() {
-    // 初期化時は固定値、実行時のみ現在時刻を使用
-    if (typeof window !== 'undefined' && window.document && window.document.readyState === 'loading') {
-        // ページ読み込み中は固定値を使用
-        return '2024-01-01T00:00:00.000Z';
-    }
     return new Date().toISOString();
 }
 
