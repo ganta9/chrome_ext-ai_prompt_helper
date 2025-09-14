@@ -18,7 +18,7 @@ let sheetsConnector = null;
 let syncManager = null;
 let syncSettings = {
     enabled: true,
-    scriptUrl: 'https://script.google.com/macros/s/AKfycbx0eSQD8AZgj5ClYR8eEkNKOTa9b4w2a93gMU9KyFrXB5LShXoOB01wsrvc3LDtidl-MA/exec',
+    scriptUrl: 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec',
     autoSyncEnabled: true,
     autoSyncInterval: 5 * 60 * 1000, // 5分
     lastSyncTime: null

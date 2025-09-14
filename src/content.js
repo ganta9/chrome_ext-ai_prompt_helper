@@ -530,11 +530,14 @@ function insertPromptDirectly(prompt) {
   console.log('✅ テキストエリア発見:', textarea);
 
   try {
-    // Claude.aiの場合は contenteditable要素なので、Clipboard APIを使用
     textarea.focus();
     console.log('📝 フォーカス設定完了');
 
-    // v5.0.0で成功したClipboard APIアプローチ
+    // Clipboard APIを使用する前に、まずテキストエリアをクリアし、inputイベントを発火
+    // これによりReactが変更を検知しやすくなる
+    textarea.textContent = '';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
     navigator.clipboard.writeText(prompt).then(() => {
       console.log('📋 クリップボードに書き込み完了');
 
@@ -552,7 +555,7 @@ function insertPromptDirectly(prompt) {
     }).catch(error => {
       console.error('❌ クリップボード操作エラー:', error);
       // フォールバック: 通常のinsertPrompt
-      insertPrompt(prompt);
+      insertPrompt(prompt); // insertPrompt関数が呼ばれるので、そちらの修正で対応
     });
 
   } catch (error) {
@@ -594,32 +597,58 @@ function insertPrompt(text) {
     const newText = currentText ? currentText + '\n\n' + text : text;
     
     if (site === 'claude' || site === 'chatgpt') {
-      // Clipboard APIを使用してペーストをシミュレート
-      console.log('Claude/ChatGPT検出、Clipboard APIを使用:', site);
-      console.log('挿入予定テキスト:', newText.substring(0, 100) + '...');
+  console.log('Claude/ChatGPT検出、Clipboard APIを再試行:', site);
+  console.log('挿入予定テキスト:', newText.substring(0, 100) + '...');
 
+  textarea.focus();
+
+  navigator.clipboard.writeText(newText).then(() => {
+    console.log('📋 クリップボードへの書き込み完了');
+
+    // v5.0.0のアプローチ: クリップボード書き込み成功後にテキストエリアをクリア
+    textarea.textContent = '';
+    textarea.dispatchEvent(new Event('input', { bubbles: true })); // Reactにクリアを通知
+
+    const pasteEvent = new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: new DataTransfer()
+    });
+
+    pasteEvent.clipboardData.setData('text/plain', newText);
+    textarea.dispatchEvent(pasteEvent);
+
+    console.log('✅ ペーストイベント送信完了');
+
+    // ペースト後、Reactが変更を検知するのを助けるために再度inputイベントを発火
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+  }).catch((error) => {
+    console.error('❌ クリップボード操作エラー、execCommandをフォールバック:', error);
+    // Clipboard APIが失敗した場合、execCommandを試す
+    try {
+      textarea.textContent = ''; // クリア
+      textarea.dispatchEvent(new Event('input', { bubbles: true })); // Reactにクリアを通知
+      const success = document.execCommand('insertText', false, newText);
+      if (success) {
+        console.log('✅ execCommand("insertText") フォールバック成功');
+        textarea.dispatchEvent(new Event('input', { bubbles: true })); // Reactに通知
+      } else {
+        console.warn('⚠️ execCommand("insertText") も失敗。最終フォールバック。');
+        throw new Error('execCommand failed');
+      }
+    } catch (execError) {
+      console.error('❌ execCommand フォールバックエラー:', execError);
+      // 最終フォールバック: クリップボードコピーと手動ペーストを促す
       navigator.clipboard.writeText(newText).then(() => {
-        console.log('クリップボードへの書き込み完了');
-        textarea.textContent = '';
-
-        const pasteEvent = new ClipboardEvent('paste', {
-          bubbles: true,
-          cancelable: true,
-          clipboardData: new DataTransfer()
-        });
-
-        pasteEvent.clipboardData.setData('text/plain', newText);
-        console.log('ペーストイベントを発火中...');
-        textarea.dispatchEvent(pasteEvent);
-        console.log('ペーストイベント発火完了');
-
-      }).catch((error) => {
-        console.error('Clipboard API失敗、フォールバックを実行:', error);
-        // フォールバック
-        textarea.textContent = newText;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        showNotification('プロンプトをクリップボードにコピーしました。手動でペーストしてください。', 'warning');
+      }).catch(copyError => {
+        console.error('クリップボードコピー失敗:', copyError);
+        showNotification('プロンプトのコピーに失敗しました。', 'error');
       });
-    } else {
+    }
+  });
+} else {
       // その他のサイト
       textarea.textContent = newText;
       textarea.dispatchEvent(new Event('input', { bubbles: true }));

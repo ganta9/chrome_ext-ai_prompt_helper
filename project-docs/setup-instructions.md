@@ -6,7 +6,9 @@
 1. [Google Sheets](https://sheets.google.com) にアクセス
 2. 「空白のスプレッドシート」を作成
 3. シート名を「Prompts」に変更（重要）
+   - **注意**: シート名は正確に「Prompts」としてください。大文字・小文字も区別されます。
 4. URLからスプレッドシートIDをコピー（例：`1AbC2DeFgHiJkLmNoPqRsTuVwXyZ123456789`）
+   - **重要**: このIDは、Google Apps Scriptの `google-apps-script.js` ファイル内の `SPREADSHEET_ID` と完全に一致している必要があります。
 
 ### 1.2 ヘッダー行設定
 A1セルから以下のヘッダーを設定：
@@ -15,7 +17,10 @@ A1セルから以下のヘッダーを設定：
 |----|----|----|----|----|----|----|----|
 | id | title | prompt | memo | tags | created_at | updated_at | deleted |
 
-## 2. Google Apps Script設定
+- **重要**: 各ヘッダーは、上記テーブルの通り、**個別のセル**に正確なスペルで入力してください。
+- **注意**: `id`, `created_at`, `updated_at`, `deleted` 列は、Google Apps Scriptが自動で管理します。
+  - `id` 列は、プロンプト追加時に自動生成されます。手動で入力したデータにIDを割り振る場合は、GASの `fixManualData()` 関数を実行してください。
+  - `deleted` 列は、論理削除フラグです。通常は空欄または `FALSE` (ブール値) にしてください。文字列の "FALSE" は避けてください。
 
 ### 2.1 Apps Script プロジェクト作成
 1. [Google Apps Script](https://script.google.com) にアクセス
