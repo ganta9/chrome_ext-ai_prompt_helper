@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Prompt Helper Editor</title>
+    <title>AI Prompt Helper - Viewer</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -14,17 +14,14 @@
         <div class="header-content">
             <h1 class="header-title">
                 <span class="header-icon">📝</span>
-                AI Prompt Helper Editor
+                AI Prompt Viewer
             </h1>
             <div class="header-actions">
                 <input type="text" id="search-input" class="search-input" placeholder="プロンプト検索...">
-                <button id="add-prompt-btn" class="btn btn-primary">
-                    <span>+</span> プロンプト追加
-                </button>
-                <button id="download-btn" class="btn btn-secondary">
-                    <span>📥</span> JSONダウンロード
-                </button>
             </div>
+        </div>
+        <div class="header-info">
+            <p>プロンプトの追加・編集は<a href="#" id="spreadsheet-link" target="_blank">Googleスプレッドシート</a>で行ってください。(データは1時間ごとに自動同期されます)</p>
         </div>
     </header>
 
@@ -37,14 +34,7 @@
                 <button id="clear-filter-btn" class="btn-text">クリア</button>
             </div>
             <div class="tag-list" id="tag-list">
-                <div class="tag-item active" data-tag="all">
-                    <span class="tag-name">すべて</span>
-                    <span class="tag-count" id="all-count">0</span>
-                </div>
                 <!-- タグ一覧は動的に生成 -->
-            </div>
-            <div class="sidebar-footer">
-                <button id="add-tag-btn" class="btn btn-text">+ 新しいタグ</button>
             </div>
         </aside>
 
@@ -55,9 +45,8 @@
                 <div class="content-meta">
                     <span id="prompt-count">0個のプロンプト</span>
                     <select id="sort-select" class="sort-select">
-                        <option value="created">作成日順</option>
-                        <option value="title">タイトル順</option>
                         <option value="updated">更新日順</option>
+                        <option value="title">タイトル順</option>
                     </select>
                 </div>
             </div>
@@ -68,53 +57,12 @@
 
             <!-- 空の状態 -->
             <div class="empty-state" id="empty-state" style="display: none;">
-                <div class="empty-icon">📝</div>
-                <h3>プロンプトがありません</h3>
-                <p>最初のプロンプトを追加してみましょう</p>
-                <button class="btn btn-primary" onclick="showAddModal()">プロンプト追加</button>
+                <div class="empty-icon">📂</div>
+                <h3>プロンプトが見つかりません</h3>
+                <p>フィルター条件を変更するか、`prompts.json`が正しく配置されているか確認してください。</p>
             </div>
         </section>
     </main>
-
-    <!-- プロンプト追加・編集モーダル -->
-    <div class="modal-overlay" id="prompt-modal" style="display: none;">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 id="modal-title">プロンプト追加</h3>
-                <button class="modal-close" id="modal-close">×</button>
-            </div>
-
-            <form class="modal-content" id="prompt-form">
-                <div class="form-group">
-                    <label for="prompt-title">タイトル <span class="required">*</span></label>
-                    <input type="text" id="prompt-title" class="form-input" placeholder="例: 文章校閲プロンプト" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="prompt-content">プロンプト <span class="required">*</span></label>
-                    <textarea id="prompt-content" class="form-textarea" rows="8"
-                        placeholder="実際にAIに送信するプロンプト内容を入力してください..." required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="prompt-memo">メモ</label>
-                    <textarea id="prompt-memo" class="form-textarea" rows="3"
-                        placeholder="使用方法、コツ、改善履歴など..."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="prompt-tags">タグ（カンマ区切りで入力）</label>
-                    <input type="text" id="prompt-tags" class="form-input" placeholder="例: AI, 翻訳, コード, ビジネス">
-                    <div class="tag-suggestions" id="tag-suggestions"></div>
-                </div>
-
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" id="cancel-btn">キャンセル</button>
-                    <button type="submit" class="btn btn-primary" id="save-btn">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- プロンプト詳細・選択モーダル -->
     <div class="modal-overlay" id="detail-modal" style="display: none;">
@@ -130,56 +78,24 @@
                         <h4>プロンプト</h4>
                         <div class="prompt-preview" id="detail-prompt"></div>
                     </div>
-
-                    <div class="detail-section" id="detail-memo-section">
+                    <div class="detail-section">
                         <h4>メモ</h4>
                         <div class="memo-content" id="detail-memo"></div>
                     </div>
-
                     <div class="detail-section">
                         <h4>タグ</h4>
                         <div class="tag-list-horizontal" id="detail-tags"></div>
                     </div>
                 </div>
-
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" id="detail-edit-btn">編集</button>
-                    <button type="button" class="btn btn-danger" id="detail-delete-btn">削除</button>
                     <button type="button" class="btn btn-primary" id="detail-select-btn">このプロンプトを選択</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 削除確認モーダル -->
-    <div class="modal-overlay" id="delete-modal" style="display: none;">
-        <div class="modal modal-small">
-            <div class="modal-header">
-                <h3>プロンプト削除</h3>
-                <button class="modal-close" id="delete-close">×</button>
-            </div>
-
-            <div class="modal-content">
-                <p>このプロンプトを削除しますか？この操作は取り消せません。</p>
-                <div class="delete-prompt-info">
-                    <strong id="delete-prompt-title"></strong>
-                </div>
-            </div>
-
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" id="delete-cancel">キャンセル</button>
-                <button type="button" class="btn btn-danger" id="delete-confirm">削除</button>
-            </div>
-        </div>
-    </div>
-
     <!-- 通知 -->
-    <div class="notification" id="notification" style="display: none;">
-        <div class="notification-content">
-            <span class="notification-icon" id="notification-icon">✓</span>
-            <span class="notification-message" id="notification-message"></span>
-        </div>
-    </div>
+    <div class="notification" id="notification" style="display: none;"></div>
 
     <!-- ローディング -->
     <div class="loading" id="loading" style="display: none;">

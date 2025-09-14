@@ -44,11 +44,23 @@ AIチャットサイト用のプロンプト管理Chrome拡張機能です。個
 
 ```
 ├── src/          # Chrome拡張機能
-├── docs/         # GitHub Pages編集サイト
+├── docs/         # GitHub Pages閲覧サイト (prompts.jsonをホスト)
 ├── icons/        # アイコン
 ├── manifest.json # 拡張機能設定
-└── versions/     # 過去バージョン
+├── .github/workflows/ # GitHub Actions ワークフロー
+└── project-docs/ # 仕様書などのドキュメント
 ```
+
+## アーキテクチャ (v6.0.0)
+
+v6.0.0では、プロンプトデータをGoogleスプレッドシートで管理し、GitHub Actionsで自動的にJSONファイルを生成するアーキテクチャを採用しています。
+
+- **データ原本**: Googleスプレッドシート
+- **自動同期**: GitHub Actionsが1時間ごとにスプレッドシートのデータを`docs/prompts.json`に変換・コミットします。
+- **データ利用**: Chrome拡張機能とGitHub Pagesサイトは、この`docs/prompts.json`を読み込んで利用します。
+
+詳細な仕様は `project-docs/spec.md` を、セットアップ手順は `project-docs/setup-instructions.md` を参照してください。
+
 
 ## 開発メモ
 

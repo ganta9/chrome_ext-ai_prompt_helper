@@ -1,0 +1,14 @@
+{
+  "name": "ai-prompt-helper-scripts",
+  "version": "1.0.0",
+  "description": "A script to sync Google Sheets data to a JSON file.",
+  "main": "scripts/sync-spreadsheet.js",
+  "scripts": {
+    "start": "node scripts/sync-spreadsheet.js"
+  },
+  "dependencies": {
+    "googleapis": "^105.0.0"
+  },
+  "author": "",
+  "license": "ISC"
+}

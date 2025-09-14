@@ -484,6 +484,99 @@ function setupInitialData() {
 /**
  * シンプルテスト関数（パラメータなしでテスト）
  */
+/**
+ * サンプルデータを削除する関数
+ */
+function clearSampleData() {
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME);
+    
+    if (!sheet) {
+      return JSON.stringify({ success: false, error: 'Sheet not found' });
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      return JSON.stringify({ success: true, message: 'No data to clear' });
+    }
+    
+    // サンプルデータ（prompt_で始まるID）を削除
+    const data = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+    let deletedCount = 0;
+    
+    for (let i = data.length - 1; i >= 0; i--) {
+      const row = data[i];
+      const id = row[0];
+      if (id && typeof id === 'string' && id.startsWith('prompt_')) {
+        sheet.deleteRow(i + 2); // ヘッダー行を考慮
+        deletedCount++;
+      }
+    }
+    
+    return JSON.stringify({
+      success: true,
+      message: `Deleted ${deletedCount} sample data rows`
+    });
+    
+  } catch (error) {
+    console.error('clearSampleData error:', error);
+    return JSON.stringify({ success: false, error: error.toString() });
+  }
+}
+
+/**
+ * 手動入力データにIDを追加する関数
+ */
+function fixManualData() {
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME);
+    
+    if (!sheet) {
+      return JSON.stringify({ success: false, error: 'Sheet not found' });
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      return JSON.stringify({ success: true, message: 'No data to fix' });
+    }
+    
+    const data = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+    let fixedCount = 0;
+    const now = new Date();
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const id = row[0];
+      const title = row[1];
+      
+      // IDが空またはfalsy、かつタイトルがある場合
+      if ((!id || id === '') && title) {
+        const newId = 'manual_' + Utilities.getUuid().replace(/-/g, '');
+        const rowIndex = i + 2; // ヘッダー行を考慮
+        
+        // ID、作成日時、更新日時、削除フラグを設定
+        sheet.getRange(rowIndex, 1).setValue(newId); // ID
+        if (!row[5]) sheet.getRange(rowIndex, 6).setValue(now); // created_at
+        if (!row[6]) sheet.getRange(rowIndex, 7).setValue(now); // updated_at
+        if (row[7] !== false) sheet.getRange(rowIndex, 8).setValue(false); // deleted
+        
+        fixedCount++;
+      }
+    }
+    
+    return JSON.stringify({
+      success: true,
+      message: `Fixed ${fixedCount} manual data rows`
+    });
+    
+  } catch (error) {
+    console.error('fixManualData error:', error);
+    return JSON.stringify({ success: false, error: error.toString() });
+  }
+}
+
 function simpleTest() {
   console.log('Simple test started');
 
