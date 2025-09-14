@@ -434,14 +434,31 @@ function handleSheetsToggle() {
 
 async function updateStats() {
     try {
-        const result = await chrome.storage.sync.get(['totalPrompts', 'lastSync']);
+        // Google Sheetsから直接プロンプト数を取得
+        const sheetsSettings = await chrome.storage.sync.get([
+            'sheetsEnabled',
+            'googleAppsScriptUrl',
+            'lastSync'
+        ]);
         
-        document.getElementById('total-prompts').textContent = result.totalPrompts || '0';
-        document.getElementById('last-sync').textContent = result.lastSync ? 
-            formatDateTime(result.lastSync) : '未同期';
+        if (sheetsSettings.sheetsEnabled && sheetsSettings.googleAppsScriptUrl) {
+            try {
+                const promptCount = await getPromptsCountFromSheets(sheetsSettings.googleAppsScriptUrl);
+                document.getElementById('total-prompts').textContent = promptCount.toString();
+            } catch (error) {
+                console.error('Google Sheetsからの統計取得エラー:', error);
+                document.getElementById('total-prompts').textContent = '取得失敗';
+            }
+        } else {
+            document.getElementById('total-prompts').textContent = '未設定';
+        }
+        
+        document.getElementById('last-sync').textContent = sheetsSettings.lastSync ? 
+            formatDateTime(sheetsSettings.lastSync) : '未同期';
             
     } catch (error) {
         console.error('統計更新エラー:', error);
+        document.getElementById('total-prompts').textContent = 'エラー';
     }
 }
 
@@ -757,6 +774,43 @@ async function clearAllData() {
 // デバッグ用
 // ==========================================================================
 
+// Google Sheetsから直接プロンプト数を取得
+async function getPromptsCountFromSheets(scriptUrl) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'countCallback_' + Date.now();
+        const timeout = setTimeout(() => {
+            reject(new Error('タイムアウト'));
+            delete window[callbackName];
+        }, 10000);
+
+        window[callbackName] = function(response) {
+            clearTimeout(timeout);
+            delete window[callbackName];
+            
+            if (response.success && response.data) {
+                resolve(response.data.length);
+            } else {
+                reject(new Error(response.error || '不明なエラー'));
+            }
+        };
+
+        const script = document.createElement('script');
+        script.src = `${scriptUrl}?action=getPrompts&callback=${callbackName}`;
+        script.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('Google Apps Scriptへの接続失敗'));
+            delete window[callbackName];
+        };
+        
+        document.head.appendChild(script);
+        setTimeout(() => {
+            if (script.parentNode) {
+                script.parentNode.removeChild(script);
+            }
+        }, 2000);
+    });
+}
+
 if (typeof window !== 'undefined') {
     window.promptHelperPopup = {
         loadSettings,
@@ -764,6 +818,7 @@ if (typeof window !== 'undefined') {
         testConnection,
         updateStats,
         clearAllData,
+        getPromptsCountFromSheets,
         // Google Sheets関連
         loadSheetsSettings,
         saveSheetsSettings,
