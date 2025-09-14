@@ -246,7 +246,7 @@ async function syncNow() {
         setLoading(true);
         showStatus('同期中...', 'warning');
 
-        // GitHub Pages編集サイトからプロンプトデータを取得
+        // 接続確認のみ実行
         const response = await fetch(url, {
             method: 'GET',
             headers: { 'Accept': 'text/html' },
@@ -257,71 +257,16 @@ async function syncNow() {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const html = await response.text();
-
-        // HTMLから初期データ（サンプル）のプロンプト数を推測
-        // 🔧 修正: GitHub PagesサイトのJavaScriptを実行してプロンプト数を取得
-        let actualPromptCount = 3; // フォールバック値
-
-        try {
-            // 新しいタブでGitHub Pagesサイトを開いてプロンプト数を取得
-            const tab = await chrome.tabs.create({
-                url: url,
-                active: false  // バックグラウンドで開く
-            });
-
-            // ページの読み込み完了を待機
-            await new Promise(resolve => {
-                chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-                    if (tabId === tab.id && info.status === 'complete') {
-                        chrome.tabs.onUpdated.removeListener(listener);
-                        resolve();
-                    }
-                });
-            });
-
-            // コンテンツスクリプトでlocalStorageを読み取り
-            const results = await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: () => {
-                    try {
-                        const data = localStorage.getItem('promptsData');
-                        if (data) {
-                            const parsed = JSON.parse(data);
-                            return parsed.prompts ? parsed.prompts.length : 3;
-                        }
-                        return 3;
-                    } catch (e) {
-                        return 3;
-                    }
-                }
-            });
-
-            if (results && results[0] && results[0].result) {
-                actualPromptCount = results[0].result;
-            }
-
-            // タブを閉じる
-            chrome.tabs.remove(tab.id);
-
-        } catch (error) {
-            console.warn('プロンプト数の取得に失敗:', error);
-        }
-
-        const samplePromptCount = actualPromptCount;
-
-        // 統計情報を更新
+        // 統計情報を更新（プロンプト数は将来Google Sheetsから取得予定）
         await chrome.storage.sync.set({
             githubPagesUrl: url,
-            totalPrompts: samplePromptCount,
+            totalPrompts: 'Google Sheets連携準備中',
             lastSync: new Date().toISOString()
         });
 
-        // UI更新
-        document.getElementById('total-prompts').textContent = samplePromptCount;
-        document.getElementById('last-sync').textContent = '今';
+        await updateStats();
 
-        showStatus(`同期完了: ${samplePromptCount}個のプロンプトを確認`, 'success');
+        showStatus('同期完了: 編集サイトへの接続を確認しました', 'success');
 
     } catch (error) {
         console.error('同期エラー:', error);
