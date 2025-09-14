@@ -19,8 +19,8 @@ let syncManager = null;
 let syncSettings = {
     enabled: true,
     scriptUrl: 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec',
-    autoSyncEnabled: true,
-    autoSyncInterval: 5 * 60 * 1000, // 5分
+    autoSyncEnabled: false,
+    // autoSyncInterval removed - manual sync only
     lastSyncTime: null
 };
 
@@ -1169,7 +1169,7 @@ class SyncManager {
     constructor(sheetsConnector) {
         this.sheets = sheetsConnector;
         this.isProcessing = false;
-        this.autoSyncTimer = null;
+        // autoSyncTimer removed
     }
 
     async syncToSheets() {
@@ -1348,32 +1348,8 @@ class SyncManager {
         } 
     }
 
-    startAutoSync() {
-        if (!syncSettings.autoSyncEnabled || !syncSettings.enabled) {
-            console.log('自動同期は無効です');
-            return;
-        }
-
-        console.log('🔄 自動同期を開始:', syncSettings.autoSyncInterval / 60000, '分間隔');
-
-        this.autoSyncTimer = setInterval(async () => {
-            console.log('🔄 自動同期実行中...');
-            const result = await this.fullSync();
-
-            if (result.success) {
-                console.log('✅ 自動同期成功');
-            } else {
-                console.error('❌ 自動同期失敗:', result.error);
-            }
-        }, syncSettings.autoSyncInterval);
-    }
-
-    stopAutoSync() {
-        if (this.autoSyncTimer) {
-            clearInterval(this.autoSyncTimer);
-            this.autoSyncTimer = null;
-            console.log('🛑 自動同期を停止しました');
-        }
+    // 自動同期機能は削除されました
+    // 必要な時のみ手動で同期を実行してください
     }
 }
 
@@ -1415,9 +1391,7 @@ function initializeSheetsConnection() {
 
         console.log('✅ Google Sheets連携初期化完了');
 
-        // 自動同期開始
-        if (syncSettings.autoSyncEnabled) {
-            syncManager.startAutoSync();
+        // 自動同期は無効化されています
         }
 
     } catch (error) {

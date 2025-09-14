@@ -1,6 +1,6 @@
 /**
  * AI Prompt Helper v6.0.0 - Popup Script
- * 設定画面のJavaScript
+ * シンプル設定画面のJavaScript
  */
 
 // ==========================================================================
@@ -29,12 +29,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initializePopup() {
     // 保存されている設定を読み込み
     await loadSettings();
-    
-    // 統計情報を更新
-    await updateStats();
-
-    // Google Sheets設定を読み込み
-    await loadSheetsSettings();
 }
 
 // ==========================================================================
@@ -42,144 +36,94 @@ async function initializePopup() {
 // ==========================================================================
 
 function setupEventListeners() {
-    // GitHub Pages設定関連
+    // 設定保存ボタン
     document.getElementById('save-settings').addEventListener('click', saveSettings);
+    
+    // 接続テストボタン
     document.getElementById('test-connection').addEventListener('click', testConnection);
-    document.getElementById('github-pages-url').addEventListener('input', validateUrl);
-    document.getElementById('github-pages-url').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            saveSettings();
-        }
-    });
-
-    // Google Sheets設定関連
-    document.getElementById('save-sheets-settings').addEventListener('click', saveSheetsSettings);
-    document.getElementById('test-sheets-connection').addEventListener('click', testSheetsConnection);
-    document.getElementById('sheets-enabled').addEventListener('change', handleSheetsToggle);
-
-    // 同期関連
-    document.getElementById('sync-now').addEventListener('click', updateStats);
-    document.getElementById('clear-data').addEventListener('click', clearAllData);
     
-    // クイックアクション
+    // 編集サイトを開くボタン
     document.getElementById('open-editor').addEventListener('click', openEditor);
-    document.getElementById('show-help').addEventListener('click', showHelp);
     
-    // フッターリンク
-    document.getElementById('github-link').addEventListener('click', (e) => {
-        e.preventDefault();
-        chrome.tabs.create({ url: 'https://github.com/username/prompt-helper' });
-    });
+    // URLバリデーション
+    document.getElementById('github-pages-url').addEventListener('input', validateUrl);
     
-    document.getElementById('docs-link').addEventListener('click', (e) => {
-        e.preventDefault();
-        chrome.tabs.create({ url: 'https://github.com/username/prompt-helper/wiki' });
-    });
-    
-    document.getElementById('feedback-link').addEventListener('click', (e) => {
-        e.preventDefault();
-        chrome.tabs.create({ url: 'https://github.com/username/prompt-helper/issues' });
+    // Enterキーで保存
+    ['github-pages-url', 'spreadsheet-id', 'gas-url'].forEach(id => {
+        document.getElementById(id).addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveSettings();
+            }
+        });
     });
 }
 
 // ==========================================================================
-// 設定管理
+// 設定の読み込みと保存
 // ==========================================================================
 
 async function loadSettings() {
+    console.log('設定読み込み開始');
+    
     try {
         const result = await chrome.storage.sync.get([
             'githubPagesUrl',
-            'lastSync',
-            'totalPrompts'
+            'spreadsheetId',
+            'gasUrl'
         ]);
 
-        // GitHub Pages URLを設定
-        const urlInput = document.getElementById('github-pages-url');
-        urlInput.value = result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
+        // GitHub Pages URL
+        const githubPagesUrl = result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
+        document.getElementById('github-pages-url').value = githubPagesUrl;
 
-        // 統計情報を設定
-        if (result.lastSync) {
-            document.getElementById('last-sync').textContent = formatDateTime(result.lastSync);
-        }
+        // Google Sheets設定
+        document.getElementById('spreadsheet-id').value = result.spreadsheetId || '';
+        document.getElementById('gas-url').value = result.gasUrl || 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec';
 
-        if (result.totalPrompts !== undefined) {
-            document.getElementById('total-prompts').textContent = result.totalPrompts;
-        }
-
+        console.log('設定読み込み完了:', result);
     } catch (error) {
         console.error('設定読み込みエラー:', error);
         showStatus('設定の読み込みに失敗しました', 'error');
     }
 }
 
-async function loadSheetsSettings() {
-    try {
-        const result = await chrome.storage.sync.get([
-            'sheetsEnabled',
-            'spreadsheetId',
-            'googleAppsScriptUrl',
-            'autoSyncEnabled',
-            'autoSyncInterval',
-            'lastSheetsSync'
-        ]);
-
-        // Google Sheets設定をフォームに設定（デフォルト値を設定）
-        document.getElementById('sheets-enabled').checked = result.sheetsEnabled !== undefined ? result.sheetsEnabled : true;
-        document.getElementById('spreadsheet-id').value = result.spreadsheetId || '10KOk1aWODGfkH186Gxr17cA6zNxZGhZVecQAdxhOBGM';
-        document.getElementById('gas-url').value = result.googleAppsScriptUrl || 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec';
-        document.getElementById('auto-sync-enabled').checked = result.autoSyncEnabled !== false; // default: true
-        document.getElementById('auto-sync-interval').value = result.autoSyncInterval || 5; // default: 5分
-
-        // UI状態を更新
-        handleSheetsToggle();
-
-        // 最終同期時間を表示
-        if (result.lastSheetsSync) {
-            document.getElementById('last-sheets-sync').textContent = formatDateTime(result.lastSheetsSync);
-        } else {
-            document.getElementById('last-sheets-sync').textContent = '未同期';
-        }
-
-    } catch (error) {
-        console.error('Google Sheets設定読み込みエラー:', error);
-        showStatus('Google Sheets設定の読み込みに失敗しました', 'error');
-    }
-}
-
 async function saveSettings() {
     if (isLoading) return;
     
-    const url = document.getElementById('github-pages-url').value.trim();
-    
-    if (!url) {
-        showStatus('URLを入力してください', 'error');
-        document.getElementById('github-pages-url').focus();
-        return;
-    }
-    
-    if (!isValidUrl(url)) {
-        showStatus('有効なURLを入力してください', 'error');
-        document.getElementById('github-pages-url').focus();
-        return;
-    }
+    console.log('設定保存開始');
+    setLoading(true);
     
     try {
-        setLoading(true);
+        // 入力値を取得
+        const githubPagesUrl = document.getElementById('github-pages-url').value.trim();
+        const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
+        const gasUrl = document.getElementById('gas-url').value.trim();
+
+        // バリデーション
+        if (!githubPagesUrl) {
+            throw new Error('GitHub Pages URLを入力してください');
+        }
+
+        if (!isValidUrl(githubPagesUrl)) {
+            throw new Error('有効なGitHub Pages URLを入力してください');
+        }
+
+        // 設定を保存
+        const settings = {
+            githubPagesUrl,
+            spreadsheetId,
+            gasUrl: gasUrl || 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec',
+            lastUpdated: Date.now()
+        };
+
+        await chrome.storage.sync.set(settings);
         
-        await chrome.storage.sync.set({ 
-            githubPagesUrl: url,
-            lastUpdated: new Date().toISOString()
-        });
-        
+        console.log('設定保存完了:', settings);
         showStatus('設定を保存しました', 'success');
-        
-        // 保存後に接続テストを実行
-        setTimeout(testConnection, 1000);
         
     } catch (error) {
         console.error('設定保存エラー:', error);
-        showStatus('設定の保存に失敗しました', 'error');
+        showStatus(error.message || '設定の保存に失敗しました', 'error');
     } finally {
         setLoading(false);
     }
@@ -192,349 +136,100 @@ async function saveSettings() {
 async function testConnection() {
     if (isLoading) return;
     
-    const url = document.getElementById('github-pages-url').value.trim();
-    
-    if (!url) {
-        showStatus('URLを入力してください', 'error');
-        return;
-    }
-    
-    if (!isValidUrl(url)) {
-        showStatus('有効なURLを入力してください', 'error');
-        return;
-    }
+    console.log('接続テスト開始');
+    setLoading(true);
     
     try {
-        setLoading(true);
-        showStatus('接続をテスト中...', 'warning');
+        const githubPagesUrl = document.getElementById('github-pages-url').value.trim();
+        const gasUrl = document.getElementById('gas-url').value.trim();
         
-        // GitHub PagesサイトのHTMLページに接続テスト
-        const response = await fetch(url, {
+        if (!githubPagesUrl) {
+            throw new Error('GitHub Pages URLを入力してください');
+        }
+
+        // GitHub Pagesの接続テスト
+        showStatus('GitHub Pagesへの接続をテスト中...', 'warning');
+        
+        const githubResponse = await fetch(githubPagesUrl, {
             method: 'GET',
-            headers: {
-                'Accept': 'text/html',
-            },
-            cache: 'no-cache'
+            mode: 'no-cors'
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        console.log('GitHub Pages接続テスト完了');
+
+        // Google Apps Scriptの接続テスト (URLが設定されている場合)
+        if (gasUrl) {
+            showStatus('Google Apps Scriptへの接続をテスト中...', 'warning');
+            
+            const gasResponse = await fetch(gasUrl, {
+                method: 'GET',
+                mode: 'no-cors'
+            });
+            
+            console.log('Google Apps Script接続テスト完了');
         }
-        
-        const html = await response.text();
-        
-        // HTMLページが正常に取得できるかチェック
-        if (!html.includes('AI Prompt Helper') && !html.includes('prompt')) {
-            throw new Error('正しいプロンプト編集サイトではないようです');
-        }
-        
-        // 設定を保存
-        await chrome.storage.sync.set({
-            githubPagesUrl: url,
-            lastSync: new Date().toISOString()
-        });
-        
-        await updateStats();
-        
-        showStatus('接続成功: GitHub Pages編集サイトに接続できました', 'success');
+
+        showStatus('接続テストが完了しました', 'success');
         
     } catch (error) {
         console.error('接続テストエラー:', error);
-        let errorMessage = '接続に失敗しました';
-        
-        if (error.message.includes('404')) {
-            errorMessage = 'データファイルが見つかりません (404)';
-        } else if (error.message.includes('CORS')) {
-            errorMessage = 'CORS エラー: GitHub Pages設定を確認してください';
-        } else if (error.message.includes('network')) {
-            errorMessage = 'ネットワークエラー: インターネット接続を確認してください';
-        } else if (error.message) {
-            errorMessage += ': ' + error.message;
-        }
-        
-        showStatus(errorMessage, 'error');
+        showStatus('接続テストに失敗しました', 'error');
     } finally {
         setLoading(false);
     }
 }
 
 // ==========================================================================
-// Google Sheets設定管理
-// ==========================================================================
-
-async function saveSheetsSettings() {
-    if (isLoading) return;
-
-    const enabled = document.getElementById('sheets-enabled').checked;
-    const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
-    const gasUrl = document.getElementById('gas-url').value.trim();
-    const autoSyncEnabled = document.getElementById('auto-sync-enabled').checked;
-    const autoSyncInterval = parseInt(document.getElementById('auto-sync-interval').value) || 5;
-
-    if (enabled) {
-        if (!spreadsheetId) {
-            showStatus('スプレッドシートIDを入力してください', 'error');
-            document.getElementById('spreadsheet-id').focus();
-            return;
-        }
-
-        if (!gasUrl || !isValidUrl(gasUrl)) {
-            showStatus('有効なGoogle Apps Script URLを入力してください', 'error');
-            document.getElementById('gas-url').focus();
-            return;
-        }
-    }
-
-    try {
-        setLoading(true);
-
-        await chrome.storage.sync.set({
-            sheetsEnabled: enabled,
-            spreadsheetId: spreadsheetId,
-            googleAppsScriptUrl: gasUrl,
-            autoSyncEnabled: autoSyncEnabled,
-            autoSyncInterval: autoSyncInterval,
-            lastSheetsSettingsUpdate: new Date().toISOString()
-        });
-
-        showStatus('Google Sheets設定を保存しました', 'success');
-
-        // 保存後に接続テストを実行
-        if (enabled) {
-            setTimeout(testSheetsConnection, 1000);
-        }
-
-    } catch (error) {
-        console.error('Google Sheets設定保存エラー:', error);
-        showStatus('設定の保存に失敗しました', 'error');
-    } finally {
-        setLoading(false);
-    }
-}
-
-async function testSheetsConnection() {
-    if (isLoading) return;
-
-    const gasUrl = document.getElementById('gas-url').value.trim();
-
-    if (!gasUrl) {
-        showStatus('Google Apps Script URLを入力してください', 'error');
-        return;
-    }
-
-    if (!isValidUrl(gasUrl)) {
-        showStatus('有効なURLを入力してください', 'error');
-        return;
-    }
-
-    try {
-        setLoading(true);
-        showStatus('Google Sheetsへの接続をテスト中...', 'warning');
-
-        // fetch APIを使用してテスト（Manifest V3対応）
-        const testUrl = `${gasUrl}?action=getPrompts`;
-
-        const response = await fetch(testUrl, {
-            method: 'GET',
-            mode: 'cors',
-            headers: {
-                'Accept': 'application/javascript, text/javascript, */*'
-            },
-            credentials: 'omit'
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: サーバーからエラー応答`);
-        }
-
-        const responseText = await response.text();
-        console.log('Google Apps Script応答:', responseText);
-
-        // JSONP応答の解析を試行
-        let jsonData;
-
-        // パターン1: callback(...)の形式
-        const callbackMatch = responseText.match(/callback\((.+)\);?\s*$/);
-        if (callbackMatch) {
-            try {
-                jsonData = JSON.parse(callbackMatch[1]);
-            } catch (e) {
-                console.warn('JSONP解析失敗:', e);
-            }
-        }
-
-        // パターン2: 直接JSON
-        if (!jsonData) {
-            try {
-                jsonData = JSON.parse(responseText);
-            } catch (e) {
-                console.warn('JSON解析失敗:', e);
-                throw new Error('Google Apps Scriptからの応答を解析できませんでした');
-            }
-        }
-
-        if (!jsonData.success) {
-            throw new Error(jsonData.error || 'Google Apps Scriptからエラー応答');
-        }
-
-        // 成功情報を保存
-        await chrome.storage.sync.set({
-            lastSheetsSync: new Date().toISOString(),
-            lastSheetsTest: new Date().toISOString()
-        });
-
-        await loadSheetsSettings(); // UI更新
-
-        const promptCount = jsonData.data ? jsonData.data.length : 0;
-        showStatus(`接続成功: ${promptCount}件のプロンプトを確認しました`, 'success');
-
-    } catch (error) {
-        console.error('Google Sheets接続テストエラー:', error);
-        let errorMessage = 'Google Sheetsへの接続に失敗しました';
-
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            errorMessage = 'ネットワークエラー: Google Apps ScriptのURLとデプロイ設定を確認してください';
-        } else if (error.message.includes('CORS')) {
-            errorMessage = 'CORS制限: Google Apps Scriptの「アクセスできるユーザー: 全員」設定を確認してください';
-        } else if (error.message.includes('HTTP')) {
-            errorMessage = error.message + ' - Google Apps Scriptが正しくデプロイされているか確認してください';
-        } else if (error.message) {
-            errorMessage += ': ' + error.message;
-        }
-
-        showStatus(errorMessage, 'error');
-    } finally {
-        setLoading(false);
-    }
-}
-
-function handleSheetsToggle() {
-    const enabled = document.getElementById('sheets-enabled').checked;
-    const settingsInputs = document.querySelectorAll('.sheets-config input:not(#sheets-enabled)');
-    const settingsButtons = document.querySelectorAll('.sheets-config button');
-
-    settingsInputs.forEach(input => {
-        input.disabled = !enabled;
-    });
-
-    settingsButtons.forEach(button => {
-        button.disabled = !enabled;
-    });
-
-    // 設定セクションの表示/非表示
-    const settingsSection = document.querySelector('.sheets-config');
-    if (settingsSection) {
-        settingsSection.style.opacity = enabled ? '1' : '0.5';
-    }
-}
-
-// ==========================================================================
-// 統計情報更新
-// ==========================================================================
-
-async function updateStats() {
-    try {
-        // Google Sheetsから直接プロンプト数を取得
-        const sheetsSettings = await chrome.storage.sync.get([
-            'sheetsEnabled',
-            'googleAppsScriptUrl'
-        ]);
-        
-        if (sheetsSettings.sheetsEnabled && sheetsSettings.googleAppsScriptUrl) {
-            document.getElementById('total-prompts').textContent = '取得中...';
-            try {
-                const promptCount = await getPromptsCountFromSheets(sheetsSettings.googleAppsScriptUrl);
-                document.getElementById('total-prompts').textContent = promptCount.toString();
-                document.getElementById('last-sync').textContent = formatDateTime(new Date());
-                console.log('✅ Google Sheetsから', promptCount, '個のプロンプトを取得');
-            } catch (error) {
-                console.error('Google Sheetsからの統計取得エラー:', error);
-                document.getElementById('total-prompts').textContent = '取得失敗';
-                document.getElementById('last-sync').textContent = 'エラー';
-            }
-        } else {
-            document.getElementById('total-prompts').textContent = '未設定';
-            document.getElementById('last-sync').textContent = '未設定';
-        }
-            
-    } catch (error) {
-        console.error('統計更新エラー:', error);
-        document.getElementById('total-prompts').textContent = 'エラー';
-    }
-}
-
-// syncNow関数を削除 - updateStats()で直接データ更新
-
-// ==========================================================================
-// クイックアクション
+// 編集サイトを開く
 // ==========================================================================
 
 async function openEditor() {
     try {
         const result = await chrome.storage.sync.get(['githubPagesUrl']);
-        const url = result.githubPagesUrl || document.getElementById('github-pages-url').value.trim();
+        const url = result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
         
-        if (!url) {
-            showStatus('GitHub Pages URLを設定してください', 'error');
-            return;
-        }
-        
-        await chrome.tabs.create({ url: url });
+        chrome.tabs.create({ url });
         window.close();
-        
     } catch (error) {
-        console.error('編集サイト起動エラー:', error);
-        showStatus('編集サイトを開けませんでした', 'error');
+        console.error('サイト開放エラー:', error);
+        showStatus('サイトを開けませんでした', 'error');
     }
 }
 
-function showHelp() {
-    const helpContent = `
-AI Prompt Helper v6.0.0 使い方ガイド
+// ==========================================================================
+// ユーティリティ関数
+// ==========================================================================
 
-【セットアップ】
-1. GitHub Pages URLを設定
-2. 「接続テスト」で動作確認
-
-【基本的な使い方】
-1. ChatGPT、Claude、Geminiなどのサイトを開く
-2. 画面右端の📝ボタンをクリック
-3. 編集サイトでプロンプトを選択
-4. 自動で入力欄に挿入されます
-
-【プロンプト管理】
-- 編集サイトで追加・編集・削除
-- タグでカテゴリ分類
-- 検索・フィルタリング機能
-
-【トラブルシューティング】
-- ポップアップがブロックされる場合は許可してください
-- 📝ボタンが表示されない場合はページを再読み込み
-- データが同期されない場合は接続テストを実行
-
-サポート: GitHub Issues
-`;
-    
-    alert(helpContent);
+function isValidUrl(string) {
+    try {
+        const url = new URL(string);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+        return false;
+    }
 }
 
-// ==========================================================================
-// UI制御
-// ==========================================================================
+function validateUrl() {
+    const urlInput = document.getElementById('github-pages-url');
+    const url = urlInput.value.trim();
+    
+    if (url && !isValidUrl(url)) {
+        urlInput.style.borderColor = 'var(--danger)';
+    } else {
+        urlInput.style.borderColor = 'var(--border)';
+    }
+}
 
 function showStatus(message, type = 'info') {
     const statusElement = document.getElementById('settings-status');
-    
     statusElement.textContent = message;
     statusElement.className = `status ${type}`;
     statusElement.style.display = 'block';
     
-    // 成功メッセージは3秒後に非表示
-    if (type === 'success') {
-        setTimeout(() => {
-            statusElement.style.display = 'none';
-        }, 3000);
-    }
+    // 3秒後に非表示
+    setTimeout(() => {
+        statusElement.style.display = 'none';
+    }, 3000);
 }
 
 function setLoading(loading) {
@@ -556,155 +251,18 @@ function setLoading(loading) {
     });
 }
 
-function validateUrl() {
-    const url = document.getElementById('github-pages-url').value.trim();
-    const saveBtn = document.getElementById('save-settings');
-    const testBtn = document.getElementById('test-connection');
-    
-    const isValid = url && isValidUrl(url);
-    
-    saveBtn.disabled = !isValid;
-    testBtn.disabled = !isValid;
-    
-    if (url && !isValid) {
-        showStatus('URL形式が正しくありません', 'error');
-    } else if (url && isValid) {
-        document.getElementById('settings-status').style.display = 'none';
-    }
-}
-
 // ==========================================================================
-// ユーティリティ関数
+// エラーハンドリング
 // ==========================================================================
 
-function isValidUrl(string) {
-    try {
-        const url = new URL(string);
-        return url.protocol === 'http:' || url.protocol === 'https:';
-    } catch (_) {
-        return false;
-    }
-}
+window.addEventListener('error', (event) => {
+    console.error('Popup Error:', event.error);
+    showStatus('予期しないエラーが発生しました', 'error');
+});
 
-function formatDateTime(isoString) {
-    try {
-        const date = new Date(isoString);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMinutes = Math.floor(diffMs / (1000 * 60));
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        
-        if (diffMinutes < 1) {
-            return '今';
-        } else if (diffMinutes < 60) {
-            return `${diffMinutes}分前`;
-        } else if (diffHours < 24) {
-            return `${diffHours}時間前`;
-        } else if (diffDays < 7) {
-            return `${diffDays}日前`;
-        } else {
-            return date.toLocaleDateString('ja-JP', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-    } catch (error) {
-        return '不明';
-    }
-}
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled Promise Rejection:', event.reason);
+    showStatus('予期しないエラーが発生しました', 'error');
+});
 
-// ==========================================================================
-// データクリア機能
-// ==========================================================================
-
-async function clearAllData() {
-    if (!confirm('すべてのプロンプトデータとキャッシュをクリアしますか？\n\nこの操作は元に戻せません。')) {
-        return;
-    }
-
-    try {
-        showStatus('データをクリア中...', 'loading');
-
-        // Chrome拡張のストレージをクリア
-        await chrome.storage.sync.clear();
-        await chrome.storage.local.clear();
-
-        console.log('✅ Chrome拡張のストレージをクリア完了');
-
-        // 統計情報をリセット
-        document.getElementById('total-prompts').textContent = '0';
-        document.getElementById('last-sync').textContent = '未同期';
-
-        showStatus('データクリアが完了しました', 'success');
-
-        // 設定を再読み込み（デフォルト値で初期化）
-        setTimeout(async () => {
-            await initializePopup();
-        }, 1000);
-
-    } catch (error) {
-        console.error('データクリアエラー:', error);
-        showStatus('データクリアに失敗しました: ' + error.message, 'error');
-    }
-}
-
-// ==========================================================================
-// デバッグ用
-// ==========================================================================
-
-// Google Sheetsから直接プロンプト数を取得
-async function getPromptsCountFromSheets(scriptUrl) {
-    return new Promise((resolve, reject) => {
-        const callbackName = 'countCallback_' + Date.now();
-        const timeout = setTimeout(() => {
-            reject(new Error('タイムアウト'));
-            delete window[callbackName];
-        }, 10000);
-
-        window[callbackName] = function(response) {
-            clearTimeout(timeout);
-            delete window[callbackName];
-            
-            if (response.success && response.data) {
-                resolve(response.data.length);
-            } else {
-                reject(new Error(response.error || '不明なエラー'));
-            }
-        };
-
-        const script = document.createElement('script');
-        script.src = `${scriptUrl}?action=getPrompts&callback=${callbackName}`;
-        script.onerror = () => {
-            clearTimeout(timeout);
-            reject(new Error('Google Apps Scriptへの接続失敗'));
-            delete window[callbackName];
-        };
-        
-        document.head.appendChild(script);
-        setTimeout(() => {
-            if (script.parentNode) {
-                script.parentNode.removeChild(script);
-            }
-        }, 2000);
-    });
-}
-
-if (typeof window !== 'undefined') {
-    window.promptHelperPopup = {
-        loadSettings,
-        saveSettings,
-        testConnection,
-        updateStats,
-        clearAllData,
-        getPromptsCountFromSheets,
-        // Google Sheets関連
-        loadSheetsSettings,
-        saveSheetsSettings,
-        testSheetsConnection,
-        handleSheetsToggle,
-        version: '6.0.0'
-    };
-}
+console.log('AI Prompt Helper Popup Script v6.0.0 loaded');
