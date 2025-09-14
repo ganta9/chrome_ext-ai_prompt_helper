@@ -45,6 +45,9 @@ function setupEventListeners() {
     // 編集サイトを開くボタン
     document.getElementById('open-editor').addEventListener('click', openEditor);
     
+    // プロンプトデータ更新ボタン
+    document.getElementById('manual-update').addEventListener('click', manualUpdate);
+    
     // URLバリデーション
     document.getElementById('github-pages-url').addEventListener('input', validateUrl);
     
@@ -79,6 +82,9 @@ async function loadSettings() {
         // Google Sheets設定
         document.getElementById('spreadsheet-id').value = result.spreadsheetId || '';
         document.getElementById('gas-url').value = result.gasUrl || 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec';
+
+        // プロンプトキャッシュ状態を表示
+        updatePromptCacheStatus();
 
         console.log('設定読み込み完了:', result);
     } catch (error) {
@@ -264,5 +270,56 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled Promise Rejection:', event.reason);
     showStatus('予期しないエラーが発生しました', 'error');
 });
+
+// ==========================================================================
+// 新規追加機能
+// ==========================================================================
+
+async function updatePromptCacheStatus() {
+    try {
+        chrome.runtime.sendMessage({action: 'getPrompts'}, (response) => {
+            const statusElement = document.getElementById('prompt-cache-status');
+            if (response && response.success) {
+                const count = response.data.length || 0;
+                const lastSync = response.lastSync ? new Date(response.lastSync).toLocaleString() : '未同期';
+                statusElement.textContent = `${count}件のプロンプト | 最終更新: ${lastSync}`;
+                statusElement.className = 'status success';
+            } else {
+                statusElement.textContent = 'プロンプトデータなし';
+                statusElement.className = 'status warning';
+            }
+        });
+    } catch (error) {
+        console.error('プロンプトキャッシュ状態更新エラー:', error);
+    }
+}
+
+async function manualUpdate() {
+    if (isLoading) return;
+    
+    console.log('手動プロンプト更新開始');
+    setLoading(true);
+    
+    try {
+        showStatus('プロンプトデータを更新中...', 'warning');
+        
+        chrome.runtime.sendMessage({action: 'updatePrompts'}, (response) => {
+            if (response && response.success) {
+                console.log('手動更新完了:', response.count + '件');
+                showStatus(`${response.count}件のプロンプトを更新しました`, 'success');
+                updatePromptCacheStatus();
+            } else {
+                console.error('手動更新失敗:', response?.error);
+                showStatus('プロンプト更新に失敗しました: ' + (response?.error || '不明なエラー'), 'error');
+            }
+            setLoading(false);
+        });
+        
+    } catch (error) {
+        console.error('手動更新エラー:', error);
+        showStatus('更新処理でエラーが発生しました', 'error');
+        setLoading(false);
+    }
+}
 
 console.log('AI Prompt Helper Popup Script v6.0.0 loaded');

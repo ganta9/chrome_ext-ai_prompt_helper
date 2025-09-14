@@ -32,6 +32,19 @@ async function init() {
   
   console.log(`AI Prompt Helper v6.0.0 初期化開始: ${site}`);
   
+  // バックグラウンドでプロンプトデータ更新
+  try {
+    chrome.runtime.sendMessage({action: 'updatePrompts'}, (response) => {
+      if (response && response.success) {
+        console.log('プロンプトデータ更新完了:', response.count + '件');
+      } else {
+        console.warn('プロンプトデータ更新失敗:', response?.error || '不明なエラー');
+      }
+    });
+  } catch (error) {
+    console.warn('バックグラウンド更新エラー:', error);
+  }
+  
   try {
     // 少し待ってからボタンを作成
     setTimeout(() => {
@@ -175,27 +188,34 @@ async function togglePromptPanel() {
 
 async function openPromptPanel() {
   try {
-    console.log('openPromptPanel: 実行開始');
-    const githubPagesUrl = await getGitHubPagesUrl();
-    console.log('GitHub Pages URL:', githubPagesUrl);
+    console.log('openPromptPanel: ローカルデータから実行開始');
     
-    // パネルを作成
-    console.log('createPromptPanel を呼び出し中...');
-    createPromptPanel(githubPagesUrl);
-    
-    // ボタンの表示を変更
-    console.log('ボタンの表示を変更中...');
-    promptHelperButton.innerHTML = '✕';
-    promptHelperButton.style.background = '#ef4444 !important';
-    promptHelperButton.title = 'プロンプトパネルを閉じる';
-    
-    isPanelOpen = true;
-    console.log('openPromptPanel: 正常完了, isPanelOpen =', isPanelOpen);
-    showNotification('プロンプト編集パネルを開きました', 'info');
+    // ローカルキャッシュからプロンプトデータを取得
+    chrome.runtime.sendMessage({action: 'getPrompts'}, (response) => {
+      if (response && response.success) {
+        const prompts = response.data || [];
+        console.log('ローカルプロンプトデータ取得:', prompts.length + '件');
+        
+        // プロンプト選択パネルを作成
+        createPromptSelectionPanel(prompts);
+        
+        // ボタンの表示を変更
+        promptHelperButton.innerHTML = '✕';
+        promptHelperButton.style.background = '#ef4444 !important';
+        promptHelperButton.title = 'プロンプトパネルを閉じる';
+        
+        isPanelOpen = true;
+        showNotification(`${prompts.length}件のプロンプトを読み込みました`, 'success');
+        
+      } else {
+        console.warn('ローカルプロンプトデータが見つかりません');
+        showNotification('プロンプトデータがありません。設定画面で更新してください。', 'warning');
+      }
+    });
     
   } catch (error) {
     console.error('プロンプトパネル起動エラー:', error);
-    showNotification('プロンプト編集パネルを開けませんでした', 'error');
+    showNotification('プロンプトパネルを開けませんでした', 'error');
   }
 }
 
@@ -289,6 +309,145 @@ function createPromptPanel(githubPagesUrl) {
   panel.style.visibility = 'visible';
   
   console.log('createPromptPanel: プロンプトパネル作成完了');
+}
+
+// ローカルプロンプトデータから選択パネルを作成
+function createPromptSelectionPanel(prompts) {
+  console.log('createPromptSelectionPanel: パネル作成開始');
+  
+  // 既存のパネルを削除
+  if (promptHelperPanel) {
+    promptHelperPanel.remove();
+    console.log('既存パネルを削除');
+  }
+
+  // パネルを作成
+  promptHelperPanel = document.createElement('div');
+  promptHelperPanel.id = 'ai-prompt-helper-panel';
+  promptHelperPanel.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      max-height: 80vh;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 10000;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui;
+      overflow: hidden;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #8b5cf6; font-size: 18px;">🚀 AI Prompt Helper</h3>
+        <button id="close-panel-btn" style="
+          background: #ef4444;
+          border: none;
+          color: white;
+          width: 30px;
+          height: 30px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 16px;
+        ">✕</button>
+      </div>
+      
+      <div style="margin-bottom: 15px;">
+        <input type="text" id="prompt-search" placeholder="プロンプトを検索..." style="
+          width: 100%;
+          background: #2d2d2d;
+          border: 1px solid #444;
+          border-radius: 6px;
+          padding: 10px;
+          color: white;
+          font-size: 14px;
+        ">
+      </div>
+      
+      <div id="prompt-list" style="
+        max-height: 400px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+      ">
+        ${prompts.length === 0 
+          ? '<div style="text-align: center; padding: 40px; color: #666;">プロンプトがありません</div>'
+          : prompts.map((prompt, index) => `
+            <div class="prompt-item" data-index="${index}" style="
+              background: #2d2d2d;
+              margin-bottom: 8px;
+              padding: 12px;
+              border-radius: 8px;
+              cursor: pointer;
+              border: 1px solid #444;
+              transition: all 0.2s ease;
+            " onmouseover="this.style.background='#3d3d3d'" onmouseout="this.style.background='#2d2d2d'">
+              <div style="font-weight: 600; margin-bottom: 6px; color: #8b5cf6;">
+                ${prompt.title || 'タイトルなし'}
+              </div>
+              <div style="font-size: 13px; color: #ccc; line-height: 1.4; max-height: 60px; overflow: hidden;">
+                ${(prompt.content || '').substring(0, 100)}${(prompt.content || '').length > 100 ? '...' : ''}
+              </div>
+              ${prompt.tags ? `
+                <div style="margin-top: 8px;">
+                  ${prompt.tags.split(',').map(tag => `
+                    <span style="
+                      background: #8b5cf6;
+                      color: white;
+                      padding: 2px 8px;
+                      border-radius: 12px;
+                      font-size: 11px;
+                      margin-right: 6px;
+                    ">${tag.trim()}</span>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+      </div>
+      
+      <div style="text-align: center; font-size: 12px; color: #666;">
+        ${prompts.length}件のプロンプト | 最終更新: ${new Date().toLocaleString()}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(promptHelperPanel);
+
+  // イベントリスナーを設定
+  document.getElementById('close-panel-btn').addEventListener('click', closePromptPanel);
+  
+  // プロンプト選択イベント
+  document.querySelectorAll('.prompt-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const index = parseInt(item.dataset.index);
+      const selectedPrompt = prompts[index];
+      if (selectedPrompt && selectedPrompt.content) {
+        insertPrompt(selectedPrompt.content);
+        closePromptPanel();
+        showNotification('プロンプトを挿入しました', 'success');
+      }
+    });
+  });
+
+  // 検索機能
+  document.getElementById('prompt-search').addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('.prompt-item').forEach(item => {
+      const title = item.querySelector('div').textContent.toLowerCase();
+      const content = item.querySelector('div:nth-child(2)').textContent.toLowerCase();
+      if (title.includes(searchTerm) || content.includes(searchTerm)) {
+        item.style.display = 'block';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  });
+
+  console.log('createPromptSelectionPanel: パネル作成完了');
 }
 
 // 設定からGitHub Pages URLを取得
