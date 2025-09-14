@@ -10,8 +10,12 @@
     "scripting"
   ],
   "host_permissions": [
-    "*://*.github.io/*"
+    "*://*.github.io/*",
+    "*://script.google.com/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' https://script.google.com; object-src 'self'"
+  },
   "content_scripts": [
     {
       "matches": [
