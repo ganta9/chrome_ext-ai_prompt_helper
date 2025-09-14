@@ -24,7 +24,9 @@
       "Bash(node:*)",
       "Bash(test:*)",
       "Bash(mv:*)",
-      "mcp__serena__execute_shell_command"
+      "mcp__serena__execute_shell_command",
+      "mcp__serena__list_dir",
+      "mcp__serena__insert_after_symbol"
     ],
     "deny": []
   }

@@ -58,7 +58,7 @@ function setupEventListeners() {
     document.getElementById('sheets-enabled').addEventListener('change', handleSheetsToggle);
 
     // 同期関連
-    document.getElementById('sync-now').addEventListener('click', syncNow);
+    document.getElementById('sync-now').addEventListener('click', updateStats);
     document.getElementById('clear-data').addEventListener('click', clearAllData);
     
     // クイックアクション
@@ -437,24 +437,25 @@ async function updateStats() {
         // Google Sheetsから直接プロンプト数を取得
         const sheetsSettings = await chrome.storage.sync.get([
             'sheetsEnabled',
-            'googleAppsScriptUrl',
-            'lastSync'
+            'googleAppsScriptUrl'
         ]);
         
         if (sheetsSettings.sheetsEnabled && sheetsSettings.googleAppsScriptUrl) {
+            document.getElementById('total-prompts').textContent = '取得中...';
             try {
                 const promptCount = await getPromptsCountFromSheets(sheetsSettings.googleAppsScriptUrl);
                 document.getElementById('total-prompts').textContent = promptCount.toString();
+                document.getElementById('last-sync').textContent = formatDateTime(new Date());
+                console.log('✅ Google Sheetsから', promptCount, '個のプロンプトを取得');
             } catch (error) {
                 console.error('Google Sheetsからの統計取得エラー:', error);
                 document.getElementById('total-prompts').textContent = '取得失敗';
+                document.getElementById('last-sync').textContent = 'エラー';
             }
         } else {
             document.getElementById('total-prompts').textContent = '未設定';
+            document.getElementById('last-sync').textContent = '未設定';
         }
-        
-        document.getElementById('last-sync').textContent = sheetsSettings.lastSync ? 
-            formatDateTime(sheetsSettings.lastSync) : '未同期';
             
     } catch (error) {
         console.error('統計更新エラー:', error);
@@ -462,125 +463,7 @@ async function updateStats() {
     }
 }
 
-async function syncNow() {
-    if (isLoading) return;
-
-    const githubUrl = document.getElementById('github-pages-url').value.trim();
-    const sheetsEnabled = document.getElementById('sheets-enabled').checked;
-    const gasUrl = document.getElementById('gas-url').value.trim();
-
-    if (!githubUrl) {
-        showStatus('GitHub Pages URLを設定してください', 'error');
-        return;
-    }
-
-    try {
-        setLoading(true);
-        showStatus('同期中...', 'warning');
-
-        const results = { github: false, sheets: false };
-
-        // GitHub Pagesへの接続確認
-        try {
-            const githubResponse = await fetch(githubUrl, {
-                method: 'GET',
-                headers: { 'Accept': 'text/html' },
-                cache: 'no-cache'
-            });
-
-            if (githubResponse.ok) {
-                results.github = true;
-            }
-        } catch (error) {
-            console.warn('GitHub Pages接続エラー:', error);
-        }
-
-        // Google Sheetsへの同期（有効な場合）
-        if (sheetsEnabled && gasUrl) {
-            try {
-                // fetch APIでGoogle Sheetsに同期（Manifest V3対応）
-                const syncUrl = `${gasUrl}?action=getPrompts`;
-                const response = await fetch(syncUrl, {
-                    method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'Accept': 'application/javascript, text/javascript, */*'
-                    },
-                    credentials: 'omit'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const responseText = await response.text();
-
-                // JSONP応答の解析
-                let sheetsResponse;
-                const callbackMatch = responseText.match(/callback\((.+)\);?\s*$/);
-                if (callbackMatch) {
-                    sheetsResponse = JSON.parse(callbackMatch[1]);
-                } else {
-                    sheetsResponse = JSON.parse(responseText);
-                }
-
-                if (!sheetsResponse.success) {
-                    throw new Error(sheetsResponse.error || '不明なエラー');
-                }
-                results.sheets = true;
-
-                // プロンプト数を更新
-                if (sheetsResponse.data) {
-                    await chrome.storage.sync.set({
-                        totalPrompts: sheetsResponse.data.length,
-                        lastSheetsSync: new Date().toISOString()
-                    });
-                }
-
-            } catch (error) {
-                console.warn('Google Sheets同期エラー:', error);
-            }
-        }
-
-        // 結果を保存
-        await chrome.storage.sync.set({
-            githubPagesUrl: githubUrl,
-            lastSync: new Date().toISOString()
-        });
-
-        await updateStats();
-        await loadSheetsSettings();
-
-        // 結果メッセージ
-        let message = '同期完了: ';
-        const statuses = [];
-
-        if (results.github) {
-            statuses.push('GitHub Pages接続成功');
-        } else {
-            statuses.push('GitHub Pages接続失敗');
-        }
-
-        if (sheetsEnabled) {
-            if (results.sheets) {
-                statuses.push('Google Sheets同期成功');
-            } else {
-                statuses.push('Google Sheets同期失敗');
-            }
-        }
-
-        message += statuses.join(', ');
-
-        const hasFailure = !results.github || (sheetsEnabled && !results.sheets);
-        showStatus(message, hasFailure ? 'warning' : 'success');
-
-    } catch (error) {
-        console.error('同期エラー:', error);
-        showStatus('同期に失敗しました: ' + error.message, 'error');
-    } finally {
-        setLoading(false);
-    }
-}
+// syncNow関数を削除 - updateStats()で直接データ更新
 
 // ==========================================================================
 // クイックアクション

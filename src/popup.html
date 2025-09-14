@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Prompt Helper v6.0.0</title>
     <style>
+        /* 強制的なサイズ指定 */
+        html {
+            width: 640px !important;
+            min-width: 640px !important;
+            height: 800px !important;
+            min-height: 800px !important;
+        }
+        body {
+            width: 640px !important;
+            min-width: 640px !important;
+            height: 800px !important;
+            min-height: 800px !important;
+            margin: 0 !important;
+            padding: 12px !important;
+            box-sizing: border-box !important;
+        }
+    </style>
+    <style>
         :root {
             --bg-primary: #1a1a1a;
             --bg-secondary: #2d2d2d;
@@ -450,21 +468,8 @@
                     >
                 </div>
 
-                <div class="checkbox-group">
-                    <input type="checkbox" id="auto-sync-enabled" class="form-checkbox" disabled>
-                    <label class="checkbox-label" for="auto-sync-enabled">自動同期を有効にする</label>
-                </div>
-
-                <div class="inline-group">
-                    <div class="form-group">
-                        <label class="form-label" for="auto-sync-interval">同期間隔</label>
-                        <select id="auto-sync-interval" class="form-select" disabled>
-                            <option value="1">1分</option>
-                            <option value="5" selected>5分</option>
-                            <option value="10">10分</option>
-                            <option value="30">30分</option>
-                        </select>
-                    </div>
+                <div class="info-text">
+                    <p>💡 Chrome拡張を開くたびに最新データを取得します</p>
                 </div>
 
                 <div class="btn-group">
@@ -502,7 +507,7 @@
             <div class="button-group">
                 <button id="sync-now" class="btn btn-full">
                     <span>🔄</span>
-                    今すぐ同期
+                    データ更新
                 </button>
                 <button id="clear-data" class="btn btn-danger">
                     <span>🗑️</span>
