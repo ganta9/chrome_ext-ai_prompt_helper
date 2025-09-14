@@ -1,19 +1,23 @@
 /**
- * AI Prompt Helper - Google Apps Script API
+ * AI Prompt Helper - Google Apps Script API (修正版)
  * プロンプト管理用CRUD API
  */
 
 // スプレッドシートID（実際の値に置き換えてください）
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+const SPREADSHEET_ID = '10KOk1aWODGfkH186Gxr17cA6zNxZGhZVecQAdxhOBGM';
 const SHEET_NAME = 'Prompts';
 
 /**
  * doGet - プロンプトデータの操作（JSONP対応）
+ * 修正版：エラーハンドリングを強化
  */
 function doGet(e) {
   try {
-    const params = e.parameter || {};
+    // パラメータの安全な取得
+    const params = (e && e.parameter) ? e.parameter : {};
     const callback = params.callback || 'callback';
+
+    console.log('doGet called with params:', params);
 
     let result;
 
@@ -41,15 +45,19 @@ function doGet(e) {
         result = deletePrompt(params.id);
         break;
       default:
-        result = JSON.stringify({success: false, error: 'Invalid action'});
+        result = JSON.stringify({
+          success: false,
+          error: 'Invalid action. Available actions: getPrompts, addPrompt, updatePrompt, deletePrompt'
+        });
     }
 
     const jsonpResponse = `${callback}(${result});`;
     return ContentService.createTextOutput(jsonpResponse).setMimeType(ContentService.MimeType.JAVASCRIPT);
 
   } catch (error) {
-    const callback = (e.parameter && e.parameter.callback) || 'callback';
-    const errorResult = JSON.stringify({success: false, error: error.toString()});
+    console.error('doGet error:', error);
+    const callback = ((e && e.parameter) ? e.parameter.callback : null) || 'callback';
+    const errorResult = JSON.stringify({ success: false, error: error.toString() });
     const jsonpResponse = `${callback}(${errorResult});`;
     return ContentService.createTextOutput(jsonpResponse).setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
@@ -61,7 +69,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
-      return createCORSResponse(JSON.stringify({success: false, error: 'No POST data'}));
+      return createCORSResponse(JSON.stringify({ success: false, error: 'No POST data' }));
     }
 
     const postData = JSON.parse(e.postData.contents);
@@ -78,13 +86,14 @@ function doPost(e) {
         result = deletePrompt(postData.id);
         break;
       default:
-        result = JSON.stringify({success: false, error: 'Invalid action'});
+        result = JSON.stringify({ success: false, error: 'Invalid action' });
     }
 
     return createCORSResponse(result);
 
   } catch (error) {
-    return createCORSResponse(JSON.stringify({success: false, error: error.toString()}));
+    console.error('doPost error:', error);
+    return createCORSResponse(JSON.stringify({ success: false, error: error.toString() }));
   }
 }
 
@@ -92,7 +101,7 @@ function doPost(e) {
  * doOptions - CORS preflight対応
  */
 function doOptions(e) {
-  return createCORSResponse(JSON.stringify({success: true, message: 'CORS preflight OK'}));
+  return createCORSResponse(JSON.stringify({ success: true, message: 'CORS preflight OK' }));
 }
 
 /**
@@ -170,7 +179,7 @@ function getPrompts() {
 
     // データが存在しない場合
     if (lastRow <= 1) {
-      return JSON.stringify({success: true, data: []});
+      return JSON.stringify({ success: true, data: [] });
     }
 
     // データ取得（ヘッダー行を除く）
@@ -189,10 +198,11 @@ function getPrompts() {
         updated_at: formatDate(row[6])
       }));
 
-    return JSON.stringify({success: true, data: prompts});
+    return JSON.stringify({ success: true, data: prompts });
 
   } catch (error) {
-    return JSON.stringify({success: false, error: error.toString()});
+    console.error('getPrompts error:', error);
+    return JSON.stringify({ success: false, error: error.toString() });
   }
 }
 
@@ -248,7 +258,8 @@ function addPrompt(promptData) {
     });
 
   } catch (error) {
-    return JSON.stringify({success: false, error: error.toString()});
+    console.error('addPrompt error:', error);
+    return JSON.stringify({ success: false, error: error.toString() });
   }
 }
 
@@ -320,7 +331,8 @@ function updatePrompt(id, promptData) {
     });
 
   } catch (error) {
-    return JSON.stringify({success: false, error: error.toString()});
+    console.error('updatePrompt error:', error);
+    return JSON.stringify({ success: false, error: error.toString() });
   }
 }
 
@@ -372,7 +384,8 @@ function deletePrompt(id) {
     });
 
   } catch (error) {
-    return JSON.stringify({success: false, error: error.toString()});
+    console.error('deletePrompt error:', error);
+    return JSON.stringify({ success: false, error: error.toString() });
   }
 }
 
@@ -466,4 +479,26 @@ function setupInitialData() {
   }
 
   return results;
+}
+
+/**
+ * シンプルテスト関数（パラメータなしでテスト）
+ */
+function simpleTest() {
+  console.log('Simple test started');
+
+  try {
+    // 空のeventでdoGetをテスト
+    const result1 = doGet();
+    console.log('Test 1 (no params):', result1.getContent());
+
+    // getPromptsを直接テスト
+    const result2 = getPrompts();
+    console.log('Test 2 (getPrompts):', result2);
+
+    return 'Tests completed successfully';
+  } catch (error) {
+    console.error('Test error:', error);
+    return 'Test failed: ' + error.toString();
+  }
 }
