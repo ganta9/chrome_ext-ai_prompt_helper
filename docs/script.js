@@ -224,9 +224,23 @@ function createSampleData() {
 
 function updateAllTags() {
     allTags.clear();
+    
+    // promptsが配列でない場合の安全処理
+    if (!Array.isArray(prompts)) {
+        console.error('promptsが配列ではありません:', typeof prompts, prompts);
+        prompts = [];
+        return;
+    }
+    
     prompts.forEach(prompt => {
-        if (prompt.tags && Array.isArray(prompt.tags)) {
-            prompt.tags.forEach(tag => allTags.add(tag));
+        if (prompt && prompt.tags) {
+            // tagsが文字列の場合はカンマ区切りで分割
+            if (typeof prompt.tags === 'string') {
+                const tagArray = prompt.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+                tagArray.forEach(tag => allTags.add(tag));
+            } else if (Array.isArray(prompt.tags)) {
+                prompt.tags.forEach(tag => allTags.add(tag));
+            }
         }
     });
 }
@@ -280,11 +294,31 @@ function renderPrompts() {
     const grid = document.getElementById('prompt-grid');
     const emptyState = document.getElementById('empty-state');
 
+    // promptsが配列でない場合の安全処理
+    if (!Array.isArray(prompts)) {
+        console.error('renderPrompts: promptsが配列ではありません:', typeof prompts, prompts);
+        prompts = [];
+        grid.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+
     // フィルタリングと検索
     let filteredPrompts = prompts.filter(prompt => {
         // タグフィルター
         if (currentFilter !== 'all') {
-            if (!prompt.tags || !prompt.tags.includes(currentFilter)) {
+            if (!prompt.tags) {
+                return false;
+            }
+            
+            let tagArray = [];
+            if (typeof prompt.tags === 'string') {
+                tagArray = prompt.tags.split(',').map(tag => tag.trim());
+            } else if (Array.isArray(prompt.tags)) {
+                tagArray = prompt.tags;
+            }
+            
+            if (!tagArray.includes(currentFilter)) {
                 return false;
             }
         }
@@ -292,11 +326,21 @@ function renderPrompts() {
         // 検索フィルター
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
+            
+            let tagArray = [];
+            if (prompt.tags) {
+                if (typeof prompt.tags === 'string') {
+                    tagArray = prompt.tags.split(',').map(tag => tag.trim());
+                } else if (Array.isArray(prompt.tags)) {
+                    tagArray = prompt.tags;
+                }
+            }
+            
             return (
-                prompt.title.toLowerCase().includes(query) ||
-                prompt.prompt.toLowerCase().includes(query) ||
+                (prompt.title && prompt.title.toLowerCase().includes(query)) ||
+                (prompt.prompt && prompt.prompt.toLowerCase().includes(query)) ||
                 (prompt.memo && prompt.memo.toLowerCase().includes(query)) ||
-                (prompt.tags && prompt.tags.some(tag => tag.toLowerCase().includes(query)))
+                tagArray.some(tag => tag.toLowerCase().includes(query))
             );
         }
         
