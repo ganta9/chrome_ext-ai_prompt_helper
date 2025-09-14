@@ -188,15 +188,23 @@ function getPrompts() {
     // 削除されていないプロンプトのみをフィルタリング
     const prompts = data
       .filter(row => row[0] && !row[7]) // IDがあり、deletedがfalse
-      .map(row => ({
-        id: row[0],
-        title: row[1],
-        prompt: row[2],
-        memo: row[3] || '',
-        tags: row[4] || '',
-        created_at: formatDate(row[5]),
-        updated_at: formatDate(row[6])
-      }));
+      .map(row => {
+        // tagsを配列に変換
+        let tagsArray = [];
+        if (row[4] && typeof row[4] === 'string') {
+          tagsArray = row[4].split(',').map(tag => tag.trim()).filter(tag => tag);
+        }
+        
+        return {
+          id: row[0],
+          title: row[1],
+          prompt: row[2],
+          memo: row[3] || '',
+          tags: tagsArray,
+          created_at: formatDate(row[5]),
+          updated_at: formatDate(row[6])
+        };
+      });
 
     return JSON.stringify({ success: true, data: prompts });
 
