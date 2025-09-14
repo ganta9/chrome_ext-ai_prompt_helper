@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
             height: 800px !important;
             min-height: 800px !important;
         }
+
         body {
             width: 640px !important;
             min-width: 640px !important;
@@ -381,8 +383,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         /* アニメーション */
@@ -391,11 +398,19 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <h1>
@@ -412,22 +427,18 @@
                 <span>🔗</span>
                 GitHub Pages設定
             </div>
-            
+
             <div class="form-group">
                 <label class="form-label" for="github-pages-url">編集サイトURL</label>
-                <input 
-                    type="text" 
-                    id="github-pages-url" 
-                    class="form-input"
-                    placeholder="https://ganta9.github.io/chrome_ext-ai_prompt_helper/"
-                >
+                <input type="text" id="github-pages-url" class="form-input"
+                    placeholder="https://ganta9.github.io/chrome_ext-ai_prompt_helper/">
             </div>
-            
+
             <div class="btn-group">
                 <button id="save-settings" class="btn btn-success">保存</button>
                 <button id="test-connection" class="btn btn-secondary">接続テスト</button>
             </div>
-            
+
             <div id="settings-status" class="status" style="display: none;"></div>
         </div>
 
@@ -448,24 +459,23 @@
             <div class="sheets-config">
                 <div class="form-group">
                     <label class="form-label" for="spreadsheet-id">スプレッドシートID</label>
-                    <input
-                        type="text"
-                        id="spreadsheet-id"
-                        class="form-input"
-                        placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz"
-                        disabled
-                    >
+                    <input type="text" id="spreadsheet-id" class="form-input" placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz"
+                        disabled>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="gas-url">Google Apps Script URL</label>
-                    <input
-                        type="text"
-                        id="gas-url"
-                        class="form-input"
-                        placeholder="https://script.google.com/macros/s/.../exec"
-                        disabled
-                    >
+                    <input type="text" id="gas-url" class="form-input"
+                        placeholder="https://script.google.com/macros/s/.../exec" disabled>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="auto-sync-enabled" class="form-checkbox">
+                    <label class="checkbox-label" for="auto-sync-enabled">自動同期を有効にする</label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="auto-sync-interval">自動同期間隔 (分)</label>
+                    <input type="number" id="auto-sync-interval" class="form-input" min="1" max="60" value="5" disabled>
                 </div>
 
                 <div class="info-text">
@@ -492,7 +502,7 @@
                 <span>📊</span>
                 プロンプト統計
             </div>
-            
+
             <div class="stats">
                 <div class="stat-item">
                     <div class="stat-value" id="total-prompts">-</div>
@@ -503,7 +513,7 @@
                     <div class="stat-label">最終同期</div>
                 </div>
             </div>
-            
+
             <div class="button-group">
                 <button id="sync-now" class="btn btn-full">
                     <span>🔄</span>
@@ -524,12 +534,12 @@
                 <span>⚡</span>
                 クイックアクション
             </div>
-            
+
             <button id="open-editor" class="btn btn-full">
                 <span>✏️</span>
                 編集サイトを開く
             </button>
-            
+
             <button id="show-help" class="btn btn-secondary btn-full">
                 <span>❓</span>
                 使い方ガイド
@@ -556,4 +566,5 @@
 
     <script src="popup.js"></script>
 </body>
+
 </html>

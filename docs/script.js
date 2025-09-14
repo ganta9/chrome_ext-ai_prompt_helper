@@ -260,8 +260,15 @@ function updateTagList() {
     // タグごとのカウントを計算
     const tagCounts = {};
     prompts.forEach(prompt => {
-        if (prompt.tags && Array.isArray(prompt.tags)) {
-            prompt.tags.forEach(tag => {
+        if (prompt.tags) { // prompt.tags が存在するか確認
+            let tagsToProcess = [];
+            if (typeof prompt.tags === 'string') {
+                tagsToProcess = prompt.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+            } else if (Array.isArray(prompt.tags)) {
+                tagsToProcess = prompt.tags;
+            }
+
+            tagsToProcess.forEach(tag => {
                 tagCounts[tag] = (tagCounts[tag] || 0) + 1;
             });
         }
@@ -388,9 +395,9 @@ function renderPrompts() {
             
             ${prompt.memo ? `<div class="prompt-memo">💭 ${escapeHtml(truncateText(prompt.memo, 100))}</div>` : ''}
             
-            ${prompt.tags && prompt.tags.length > 0 ? `
+            ${prompt.tags ? `
                 <div class="prompt-tags">
-                    ${prompt.tags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}
+                    ${(typeof prompt.tags === 'string' ? prompt.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '') : prompt.tags).map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}
                 </div>
             ` : ''}
             
