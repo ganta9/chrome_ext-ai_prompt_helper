@@ -213,35 +213,8 @@ async function savePrompts() {
 }
 
 function createSampleData() {
-    return [
-        {
-            id: 1,
-            title: '文章校閲プロンプト',
-            prompt: '以下の文章を校閲してください。誤字脱字、文法、表現の改善点を指摘し、修正案を提示してください。\n\n【対象文章】\n',
-            memo: 'ビジネス文書に特に効果的。長文の場合は分割して使用すると良い。',
-            tags: ['文章作成', '校閲', 'ビジネス', '日本語'],
-            createdAt: getCurrentTimestamp(),
-            updatedAt: getCurrentTimestamp()
-        },
-        {
-            id: 2,
-            title: 'プログラムコード説明',
-            prompt: '以下のコードについて、動作原理、使用している技術、改善点を詳しく説明してください。初心者にもわかりやすく解説してください。\n\n```\n[ここにコードを貼り付け]\n```',
-            memo: 'プログラミング学習時に便利。コードレビューでも活用可能。',
-            tags: ['プログラミング', 'コード解説', '学習', 'レビュー'],
-            createdAt: getCurrentTimestamp(),
-            updatedAt: getCurrentTimestamp()
-        },
-        {
-            id: 3,
-            title: '翻訳支援プロンプト',
-            prompt: '以下の文章を自然で読みやすい日本語に翻訳してください。専門用語の説明も含めてください。\n\n【原文】\n',
-            memo: '技術文書の翻訳時に特に有効。文脈を考慮した訳語選択ができる。',
-            tags: ['翻訳', '多言語', '技術文書'],
-            createdAt: getCurrentTimestamp(),
-            updatedAt: getCurrentTimestamp()
-        }
-    ];
+    // サンプルデータを空にして、Google Sheetsのみからデータを取得
+    return [];
 }
 
 function updateAllTags() {
