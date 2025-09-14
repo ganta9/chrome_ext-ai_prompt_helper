@@ -177,8 +177,8 @@ function createSampleData() {
             prompt: '以下の文章を校閲してください。誤字脱字、文法、表現の改善点を指摘し、修正案を提示してください。\\n\\n【対象文章】\\n',
             memo: 'ビジネス文書に特に効果的。長文の場合は分割して使用すると良い。',
             tags: ['文章作成', '校閲', 'ビジネス', '日本語'],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            createdAt: getCurrentTimestamp(),
+            updatedAt: getCurrentTimestamp()
         },
         {
             id: 2,
@@ -186,8 +186,8 @@ function createSampleData() {
             prompt: '以下のコードについて、動作原理、使用している技術、改善点を詳しく説明してください。初心者にもわかりやすく解説してください。\\n\\n```\\n[ここにコードを貼り付け]\\n```',
             memo: 'プログラミング学習時に便利。コードレビューでも活用可能。',
             tags: ['プログラミング', 'コード解説', '学習', 'レビュー'],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            createdAt: getCurrentTimestamp(),
+            updatedAt: getCurrentTimestamp()
         },
         {
             id: 3,
@@ -195,8 +195,8 @@ function createSampleData() {
             prompt: '以下の文章を自然で読みやすい日本語に翻訳してください。専門用語の説明も含めてください。\\n\\n【原文】\\n',
             memo: '技術文書の翻訳時に特に有効。文脈を考慮した訳語選択ができる。',
             tags: ['翻訳', '多言語', '技術文書'],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            createdAt: getCurrentTimestamp(),
+            updatedAt: getCurrentTimestamp()
         }
     ];
 }
@@ -479,10 +479,10 @@ function handleKeyboard(e) {
 
 function addPrompt(data) {
     const newPrompt = {
-        id: Date.now(),
+        id: generateId(),
         ...data,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: getCurrentTimestamp(),
+        updatedAt: getCurrentTimestamp()
     };
 
     prompts.unshift(newPrompt);
@@ -504,7 +504,7 @@ function updatePrompt(id, data) {
     prompts[index] = {
         ...prompts[index],
         ...data,
-        updatedAt: new Date().toISOString()
+        updatedAt: getCurrentTimestamp()
     };
     
     updateAllTags();
@@ -845,10 +845,19 @@ function selectPrompt(id) {
 // ユーティリティ関数
 // ==========================================================================
 
+// Hydration安全な時間生成
+function generateId() {
+    return Math.floor(Math.random() * 1000000) + Date.now();
+}
+
+function getCurrentTimestamp() {
+    return new Date().toISOString();
+}
+
 function downloadJSON() {
     const data = {
         version: '6.0.0',
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: getCurrentTimestamp(),
         prompts: prompts
     };
     
@@ -856,7 +865,7 @@ function downloadJSON() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `prompts_${formatDateForFilename(new Date())}.json`;
+    a.download = `prompts_${formatDateForFilename()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -933,8 +942,8 @@ function formatDate(dateString) {
     });
 }
 
-function formatDateForFilename(date) {
-    return date.toISOString().split('T')[0].replace(/-/g, '');
+function formatDateForFilename() {
+    return getCurrentTimestamp().split('T')[0].replace(/-/g, '');
 }
 
 // ==========================================================================
