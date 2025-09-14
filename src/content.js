@@ -159,27 +159,38 @@ function createPromptButton() {
 // ==========================================================================
 
 async function togglePromptPanel() {
-  if (isPanelOpen) {
-    closePromptPanel();
-  } else {
-    await openPromptPanel();
+  console.log('togglePromptPanel が呼び出されました, isPanelOpen:', isPanelOpen);
+  try {
+    if (isPanelOpen) {
+      console.log('パネルを閉じる処理を開始');
+      closePromptPanel();
+    } else {
+      console.log('パネルを開く処理を開始');
+      await openPromptPanel();
+    }
+  } catch (error) {
+    console.error('togglePromptPanel エラー:', error);
   }
 }
 
 async function openPromptPanel() {
   try {
+    console.log('openPromptPanel: 実行開始');
     const githubPagesUrl = await getGitHubPagesUrl();
     console.log('GitHub Pages URL:', githubPagesUrl);
     
     // パネルを作成
+    console.log('createPromptPanel を呼び出し中...');
     createPromptPanel(githubPagesUrl);
     
     // ボタンの表示を変更
+    console.log('ボタンの表示を変更中...');
     promptHelperButton.innerHTML = '✕';
     promptHelperButton.style.background = '#ef4444 !important';
     promptHelperButton.title = 'プロンプトパネルを閉じる';
     
     isPanelOpen = true;
+    console.log('openPromptPanel: 正常完了, isPanelOpen =', isPanelOpen);
     showNotification('プロンプト編集パネルを開きました', 'info');
     
   } catch (error) {
@@ -204,25 +215,29 @@ function closePromptPanel() {
 }
 
 function createPromptPanel(githubPagesUrl) {
+  console.log('createPromptPanel: パネル作成開始, URL:', githubPagesUrl);
+  
   // 既存のパネルを削除
   if (promptHelperPanel) {
+    console.log('createPromptPanel: 既存パネルを削除');
     promptHelperPanel.remove();
   }
   
   // パネル要素を作成
+  console.log('createPromptPanel: div要素を作成中');
   const panel = document.createElement('div');
   panel.id = 'prompt-helper-panel';
   panel.style.cssText = `
     position: fixed !important;
     top: 0 !important;
     right: 0 !important;
-    width: 400px !important;
+    width: 90vw !important;
     height: 100vh !important;
-    z-index: 9999 !important;
+    z-index: 999999 !important;
     background: white !important;
-    border-left: 1px solid #e5e7eb !important;
-    box-shadow: -4px 0 10px rgba(0,0,0,0.1) !important;
-    transform: translateX(100%) !important;
+    border-left: 2px solid #4f46e5 !important;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.3) !important;
+    transform: translateX(0) !important;
     transition: transform 0.3s ease !important;
   `;
   
@@ -264,15 +279,16 @@ function createPromptPanel(githubPagesUrl) {
   panel.appendChild(closeButton);
   
   // 画面に追加
+  console.log('createPromptPanel: document.bodyに追加中');
   document.body.appendChild(panel);
   promptHelperPanel = panel;
   
-  // アニメーション開始
-  setTimeout(() => {
-    panel.style.transform = 'translateX(0) !important';
-  }, 10);
+  // パネル表示確認用の追加スタイル
+  console.log('createPromptPanel: パネル表示確認用スタイル適用');
+  panel.style.display = 'block';
+  panel.style.visibility = 'visible';
   
-  console.log('プロンプトパネルを作成しました');
+  console.log('createPromptPanel: プロンプトパネル作成完了');
 }
 
 // 設定からGitHub Pages URLを取得
@@ -297,39 +313,107 @@ function setupMessageListener() {
 }
 
 function handleMessage(event) {
-  console.log('メッセージを受信:', event);
-  
+  // 全メッセージをデバッグ用に一時的にログ出力
+  console.log('★ デバッグ: 全メッセージ受信:', {
+    origin: event.origin,
+    data: event.data,
+    type: event.data?.type
+  });
+
+  // PROMPT_SELECTEDメッセージの詳細ログ
+  if (event.data && event.data.type === 'PROMPT_SELECTED') {
+    console.log('✅ プロンプト選択メッセージを受信:', event);
+    console.log('✅ 受信オリジン:', event.origin);
+    console.log('✅ メッセージデータ:', event.data);
+  }
+
   // セキュリティチェック：信頼できるオリジンからのメッセージのみ処理
   if (!isValidOrigin(event.origin)) {
-    console.warn('信頼できないオリジンからのメッセージ:', event.origin);
+    // PROMPT_SELECTEDメッセージの場合のみ警告を表示
+    if (event.data && event.data.type === 'PROMPT_SELECTED') {
+      console.error('❌ 信頼できないオリジンからのプロンプト選択メッセージ:', event.origin);
+      console.error('❌ 許可されているドメイン一覧:', ['ganta9.github.io', 'localhost', '127.0.0.1']);
+    }
     return;
   }
   
   if (event.data && event.data.type === 'PROMPT_SELECTED') {
     console.log('プロンプト選択メッセージを受信:', event.data);
-    
+
     try {
+      // プロンプトを挿入
       insertPrompt(event.data.prompt);
+
+      // パネルを自動で閉じる
+      console.log('プロンプト挿入完了、パネルを自動クローズ');
+      closePromptPanel();
+
       showNotification(`プロンプト「${event.data.title}」を挿入しました`, 'success');
     } catch (error) {
       console.error('プロンプト挿入エラー:', error);
       showNotification('プロンプトの挿入に失敗しました', 'error');
     }
   }
+
+  // INSERT_PROMPTメッセージ処理（v5.0.0互換の自動貼り付け機能）
+  if (event.data && event.data.type === 'INSERT_PROMPT') {
+    console.log('🚀 INSERT_PROMPT メッセージを受信:', event.data);
+
+    try {
+      // プロンプトをClaude.aiに直接挿入（v5.0.0のClipboard API方式）
+      insertPromptDirectly(event.data.prompt);
+
+      // パネルを自動で閉じる
+      console.log('✅ プロンプト自動挿入完了、パネルを自動クローズ');
+      closePromptPanel();
+
+      showNotification(`✅ 「${event.data.title}」を自動挿入しました`, 'success');
+    } catch (error) {
+      console.error('❌ プロンプト自動挿入エラー:', error);
+      showNotification('プロンプトの自動挿入に失敗しました', 'error');
+    }
+  }
 }
 
 // 安全なオリジンかチェック
 function isValidOrigin(origin) {
+  // 特定の許可されたオリジンリスト
+  const allowedOrigins = [
+    'https://ganta9.github.io',  // ユーザーのGitHub Pages
+    'https://localhost',
+    'https://127.0.0.1',
+    'http://localhost',
+    'http://127.0.0.1'
+  ];
+
+  // ドメインベースのチェック（フォールバック）
   const allowedDomains = [
     'github.io',
-    'github.com', 
-    'githubusercontent.com',
     'localhost',
     '127.0.0.1'
   ];
-  
-  console.log('オリジンチェック:', origin, '許可:', allowedDomains.some(domain => origin.includes(domain)));
-  return allowedDomains.some(domain => origin.includes(domain));
+
+  // 完全一致チェック
+  const exactMatch = allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed + '/') || origin.startsWith(allowed + ':'));
+
+  // ドメイン部分一致チェック
+  const domainMatch = allowedDomains.some(domain => origin.includes(domain));
+
+  const isValid = exactMatch || domainMatch;
+
+  // 既知の無関係なオリジンはログを出力しない
+  const ignoredOrigins = [
+    'https://claude.ai',
+    'https://js.stripe.com',
+    'https://www.gstatic.com',
+    'https://fonts.googleapis.com'
+  ];
+
+  if (!isValid && !ignoredOrigins.some(ignored => origin.startsWith(ignored))) {
+    console.log('オリジンチェック:', origin, 'result:', isValid);
+  }
+
+  return isValid;
 }
 
 // ==========================================================================
@@ -433,6 +517,51 @@ function isViableTextarea(element) {
 // プロンプト挿入
 // ==========================================================================
 
+// v5.0.0互換の直接挿入機能（Clipboard API使用）
+function insertPromptDirectly(prompt) {
+  console.log('🚀 insertPromptDirectly 開始:', prompt);
+
+  const textarea = findTextarea();
+  if (!textarea) {
+    console.error('❌ テキストエリアが見つかりません');
+    throw new Error('入力エリアが見つかりません');
+  }
+
+  console.log('✅ テキストエリア発見:', textarea);
+
+  try {
+    // Claude.aiの場合は contenteditable要素なので、Clipboard APIを使用
+    textarea.focus();
+    console.log('📝 フォーカス設定完了');
+
+    // v5.0.0で成功したClipboard APIアプローチ
+    navigator.clipboard.writeText(prompt).then(() => {
+      console.log('📋 クリップボードに書き込み完了');
+
+      // ペーストイベントをシミュレート
+      const pasteEvent = new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new DataTransfer()
+      });
+
+      pasteEvent.clipboardData.setData('text/plain', prompt);
+      textarea.dispatchEvent(pasteEvent);
+
+      console.log('✅ ペーストイベント送信完了');
+    }).catch(error => {
+      console.error('❌ クリップボード操作エラー:', error);
+      // フォールバック: 通常のinsertPrompt
+      insertPrompt(prompt);
+    });
+
+  } catch (error) {
+    console.error('❌ insertPromptDirectly エラー:', error);
+    // フォールバック: 通常のinsertPrompt
+    insertPrompt(prompt);
+  }
+}
+
 function insertPrompt(text) {
   const textarea = findTextarea();
   if (!textarea) {
@@ -466,19 +595,26 @@ function insertPrompt(text) {
     
     if (site === 'claude' || site === 'chatgpt') {
       // Clipboard APIを使用してペーストをシミュレート
+      console.log('Claude/ChatGPT検出、Clipboard APIを使用:', site);
+      console.log('挿入予定テキスト:', newText.substring(0, 100) + '...');
+
       navigator.clipboard.writeText(newText).then(() => {
+        console.log('クリップボードへの書き込み完了');
         textarea.textContent = '';
-        
+
         const pasteEvent = new ClipboardEvent('paste', {
           bubbles: true,
           cancelable: true,
           clipboardData: new DataTransfer()
         });
-        
+
         pasteEvent.clipboardData.setData('text/plain', newText);
+        console.log('ペーストイベントを発火中...');
         textarea.dispatchEvent(pasteEvent);
-        
-      }).catch(() => {
+        console.log('ペーストイベント発火完了');
+
+      }).catch((error) => {
+        console.error('Clipboard API失敗、フォールバックを実行:', error);
         // フォールバック
         textarea.textContent = newText;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
