@@ -1391,7 +1391,6 @@ function initializeSheetsConnection() {
         console.log('✅ Google Sheets連携初期化完了');
 
         // 自動同期は無効化されています
-        }
 
     } catch (error) {
         console.error('❌ Google Sheets連携初期化エラー:', error);
