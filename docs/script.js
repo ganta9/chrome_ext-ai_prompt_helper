@@ -151,18 +151,36 @@ function setupEventListeners() {
 
 async function loadPrompts() {
     try {
+        console.log('📊 プロンプトデータ読み込み開始');
+        
+        // Google Sheets連携が有効な場合は優先
+        if (syncSettings.enabled && syncSettings.scriptUrl && sheetsConnector) {
+            console.log('🔄 Google Sheetsからデータ読み込み中...');
+            try {
+                const sheetsData = await sheetsConnector.getPrompts();
+                if (sheetsData && sheetsData.length > 0) {
+                    prompts = sheetsData;
+                    console.log('✅ Google Sheetsデータ読み込み:', prompts.length, '個のプロンプト');
+                    updateAllTags();
+                    return;
+                }
+            } catch (sheetsError) {
+                console.warn('⚠️ Google Sheets読み込み失敗、ローカルデータにフォールバック:', sheetsError);
+            }
+        }
+
         // ローカルストレージから読み込み
         const savedData = localStorage.getItem('promptsData');
 
         if (savedData) {
             const data = JSON.parse(savedData);
             prompts = data.prompts || [];
-            console.log('ローカルデータ読み込み:', prompts.length, '個のプロンプト');
+            console.log('📁 ローカルデータ読み込み:', prompts.length, '個のプロンプト');
         } else {
             // サンプルデータを作成
             prompts = createSampleData();
             await savePrompts();
-            console.log('サンプルデータ作成');
+            console.log('🎨 サンプルデータ作成');
         }
 
         // タグリストを更新
