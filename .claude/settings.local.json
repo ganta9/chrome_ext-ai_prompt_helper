@@ -26,7 +26,8 @@
       "Bash(mv:*)",
       "mcp__serena__execute_shell_command",
       "mcp__serena__list_dir",
-      "mcp__serena__insert_after_symbol"
+      "mcp__serena__insert_after_symbol",
+      "mcp__serena__find_symbol"
     ],
     "deny": []
   }
