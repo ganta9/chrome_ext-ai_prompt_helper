@@ -126,7 +126,7 @@ async function loadSheetsSettings() {
         // Google Sheets設定をフォームに設定（デフォルト値を設定）
         document.getElementById('sheets-enabled').checked = result.sheetsEnabled !== undefined ? result.sheetsEnabled : true;
         document.getElementById('spreadsheet-id').value = result.spreadsheetId || '10KOk1aWODGfkH186Gxr17cA6zNxZGhZVecQAdxhOBGM';
-        document.getElementById('gas-url').value = result.googleAppsScriptUrl || 'https://script.google.com/macros/s/AKfycbx0eSQD8AZgj5ClYR8eEkNKOTa9b4w2a93gMU9KyFrXB5LShXoOB01wsrvc3LDtidl-MA/exec';
+        document.getElementById('gas-url').value = result.googleAppsScriptUrl || 'https://script.google.com/macros/s/AKfycbx3zxuN6z2F6sfmm2jugu7CCNUZev44-ma-PhFHfgt9OjPGTULnDAN_a8CQuxZL6xYwPw/exec';
         document.getElementById('auto-sync-enabled').checked = result.autoSyncEnabled !== false; // default: true
         document.getElementById('auto-sync-interval').value = result.autoSyncInterval || 5; // default: 5分
 
