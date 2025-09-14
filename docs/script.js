@@ -18,7 +18,7 @@ let sheetsConnector = null;
 let syncManager = null;
 let syncSettings = {
     enabled: true,
-    scriptUrl: 'https://script.google.com/macros/s/AKfycbx3zxuN6z2F6sfmm2jugu7CCNUZev44-ma-PhFHfgt9OjPGTULnDAN_a8CQuxZL6xYwPw/exec',
+    scriptUrl: 'https://script.google.com/macros/s/AKfycbx0eSQD8AZgj5ClYR8eEkNKOTa9b4w2a93gMU9KyFrXB5LShXoOB01wsrvc3LDtidl-MA/exec',
     autoSyncEnabled: true,
     autoSyncInterval: 5 * 60 * 1000, // 5分
     lastSyncTime: null
@@ -158,18 +158,25 @@ async function loadPrompts() {
             console.log('🔄 Google Sheetsからデータ読み込み中...');
             try {
                 const sheetsData = await sheetsConnector.getPrompts();
-                if (sheetsData && sheetsData.length > 0) {
-                    prompts = sheetsData;
-                    console.log('✅ Google Sheetsデータ読み込み:', prompts.length, '個のプロンプト');
-                    updateAllTags();
-                    return;
-                }
+                // Google Sheetsからデータを取得した場合は、サンプルデータは作らない
+                prompts = sheetsData || [];
+                console.log('✅ Google Sheetsデータ読み込み:', prompts.length, '個のプロンプト');
+                
+                // デバッグ用：データの詳細を確認
+                console.log('Google Sheetsデータの詳細:', prompts.slice(0, 3));
+                
+                updateAllTags();
+                return;
             } catch (sheetsError) {
-                console.warn('⚠️ Google Sheets読み込み失敗、ローカルデータにフォールバック:', sheetsError);
+                console.warn('⚠️ Google Sheets読み込み失敗:', sheetsError);
+                prompts = [];
+                updateAllTags();
+                return;
             }
         }
 
-        // ローカルストレージから読み込み
+        // Google Sheets連携が無効な場合のみローカルストレージを使用
+        console.log('📁 ローカルストレージから読み込み');
         const savedData = localStorage.getItem('promptsData');
 
         if (savedData) {
@@ -177,10 +184,8 @@ async function loadPrompts() {
             prompts = data.prompts || [];
             console.log('📁 ローカルデータ読み込み:', prompts.length, '個のプロンプト');
         } else {
-            // サンプルデータを作成
-            prompts = createSampleData();
-            await savePrompts();
-            console.log('🎨 サンプルデータ作成');
+            prompts = [];
+            console.log('📁 データなし、空の配列で初期化');
         }
 
         // タグリストを更新
@@ -188,8 +193,8 @@ async function loadPrompts() {
         
     } catch (error) {
         console.error('データ読み込みエラー:', error);
-        prompts = createSampleData();
-        await savePrompts();
+        prompts = [];
+        updateAllTags();
     }
 }
 
@@ -1039,13 +1044,13 @@ class SheetsConnector {
 
     makeRequest(action, params = {}) {
         return new Promise((resolve, reject) => {
+            const callbackName = 'callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
             const timeout = setTimeout(() => {
                 reject(new Error('リクエストタイムアウト'));
                 // コールバック関数をクリアアップ
                 delete window[callbackName];
             }, 30000); // 30秒タイムアウト
-
-            const callbackName = 'callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
             window[callbackName] = (response) => {
                 clearTimeout(timeout);
@@ -1452,4 +1457,81 @@ if (typeof window !== 'undefined') {
         sheetsConnector,
         syncManager
     };
+}
+
+// ========================================================================== 
+// デバッグ・管理用関数
+// ========================================================================== 
+
+// デバッグ用関数
+function debugInfo() {
+    return {
+        promptsCount: prompts.length,
+        prompts: prompts,
+        syncSettings: syncSettings,
+        localStorage: localStorage.getItem('promptsData')
+    };
+}
+
+// ローカルストレージをクリアする関数
+function clearLocalStorage() {
+    localStorage.removeItem('promptsData');
+    console.log('✅ ローカルストレージのプロンプトデータを削除しました');
+    return 'ローカルストレージをクリアしました';
+}
+
+// Google Sheetsから手動でデータを再読み込みする関数
+async function forceReloadFromSheets() {
+    if (sheetsConnector) {
+        try {
+            prompts = await sheetsConnector.getPrompts() || [];
+            console.log('✅ Google Sheetsから再読み込み:', prompts.length, '個');
+            console.log('データの詳細:', prompts);
+            updateTagList();
+            renderPrompts();
+            updateCounts();
+            return `Google Sheetsから${prompts.length}個のプロンプトを読み込みました`;
+        } catch (error) {
+            console.error('Google Sheets再読み込みエラー:', error);
+            return 'Google Sheets再読み込みに失敗しました: ' + error.message;
+        }
+    } else {
+        return 'Google Sheets連携が初期化されていません';
+    }
+}
+
+// Google Sheetsの手動データを修正する関数
+async function fixGoogleSheetsData() {
+    if (!syncSettings.scriptUrl) {
+        console.error('Google Apps Script URLが設定されていません');
+        return 'URLが設定されていません';
+    }
+    
+    try {
+        const url = `${syncSettings.scriptUrl}?action=fixManualData&callback=fixDataCallback`;
+        
+        return new Promise((resolve, reject) => {
+            window.fixDataCallback = function(response) {
+                console.log('fixManualData結果:', response);
+                if (response.success) {
+                    resolve(`手動データを修正しました: ${response.message}`);
+                } else {
+                    reject(new Error(response.error || '不明なエラー'));
+                }
+                delete window.fixDataCallback;
+            };
+            
+            const script = document.createElement('script');
+            script.src = url;
+            script.onerror = () => {
+                reject(new Error('Google Apps Scriptの実行に失敗しました'));
+                delete window.fixDataCallback;
+            };
+            document.head.appendChild(script);
+            document.head.removeChild(script);
+        });
+    } catch (error) {
+        console.error('fixGoogleSheetsData エラー:', error);
+        return 'エラー: ' + error.message;
+    }
 }
