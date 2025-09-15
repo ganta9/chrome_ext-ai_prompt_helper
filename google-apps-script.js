@@ -188,23 +188,15 @@ function getPrompts() {
     // 削除されていないプロンプトのみをフィルタリング
     const prompts = data
       .filter(row => row[0] && !row[7]) // IDがあり、deletedがfalse
-      .map(row => {
-        // tagsを配列に変換
-        let tagsArray = [];
-        if (row[4] && typeof row[4] === 'string') {
-          tagsArray = row[4].split(',').map(tag => tag.trim()).filter(tag => tag);
-        }
-        
-        return {
-          id: row[0],
-          title: row[1],
-          prompt: row[2],
-          memo: row[3] || '',
-          tags: tagsArray,
-          created_at: formatDate(row[5]),
-          updated_at: formatDate(row[6])
-        };
-      });
+      .map(row => ({
+        id: row[0],
+        title: row[1],
+        prompt: row[2],
+        memo: row[3] || '',
+        tags: row[4] || '',
+        created_at: formatDate(row[5]),
+        updated_at: formatDate(row[6])
+      }));
 
     return JSON.stringify({ success: true, data: prompts });
 
@@ -542,11 +534,13 @@ function fixManualData() {
     const sheet = spreadsheet.getSheetByName(SHEET_NAME);
     
     if (!sheet) {
+      console.error('fixManualData: Sheet not found');
       return JSON.stringify({ success: false, error: 'Sheet not found' });
     }
     
     const lastRow = sheet.getLastRow();
     if (lastRow <= 1) {
+      console.log('fixManualData: No data to fix');
       return JSON.stringify({ success: true, message: 'No data to fix' });
     }
     
@@ -559,8 +553,11 @@ function fixManualData() {
       const id = row[0];
       const title = row[1];
       
+      console.log(`fixManualData: Row ${i+2} - ID: '${id}', Title: '${title}'`); // デバッグログ追加
+      
       // IDが空またはfalsy、かつタイトルがある場合
       if ((!id || id === '') && title) {
+        console.log(`fixManualData: Fixing row ${i+2}`); // デバッグログ追加
         const newId = 'manual_' + Utilities.getUuid().replace(/-/g, '');
         const rowIndex = i + 2; // ヘッダー行を考慮
         
@@ -574,6 +571,7 @@ function fixManualData() {
       }
     }
     
+    console.log(`fixManualData: Fixed ${fixedCount} manual data rows`); // デバッグログ追加
     return JSON.stringify({
       success: true,
       message: `Fixed ${fixedCount} manual data rows`
@@ -584,6 +582,7 @@ function fixManualData() {
     return JSON.stringify({ success: false, error: error.toString() });
   }
 }
+
 
 function simpleTest() {
   console.log('Simple test started');

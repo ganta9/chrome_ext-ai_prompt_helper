@@ -583,58 +583,6 @@ function fixManualData() {
   }
 }
 
-function getPrompts() {
-  try {
-    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-    let sheet = spreadsheet.getSheetByName(SHEET_NAME);
-
-    // シートが存在しない場合は作成
-    if (!sheet) {
-      sheet = spreadsheet.insertSheet(SHEET_NAME);
-      // ヘッダー行を設定
-      const headers = ['id', 'title', 'prompt', 'memo', 'tags', 'created_at', 'updated_at', 'deleted'];
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-
-    const lastRow = sheet.getLastRow();
-
-    // データが存在しない場合
-    if (lastRow <= 1) {
-      console.log('getPrompts: No data rows found (lastRow <= 1)'); // デバッグログ追加
-      return JSON.stringify({ success: true, data: [] });
-    }
-
-    // データ取得（ヘッダー行を除く）
-    const data = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
-    console.log('getPrompts: Raw data from sheet:', data); // デバッグログ追加
-
-    // 削除されていないプロンプトのみをフィルタリング
-    const prompts = data
-      .filter(row => {
-        const id = row[0];
-        const deleted = row[7];
-        const condition = id && !deleted;
-        console.log(`getPrompts: Row - ID: '${id}', Deleted: '${deleted}', Condition: ${condition}`); // デバッグログ追加
-        return condition;
-      })
-      .map(row => ({
-        id: row[0],
-        title: row[1],
-        prompt: row[2],
-        memo: row[3] || '',
-        tags: row[4] || '',
-        created_at: formatDate(row[5]),
-        updated_at: formatDate(row[6])
-      }));
-    
-    console.log('getPrompts: Filtered prompts:', prompts); // デバッグログ追加
-    return JSON.stringify({ success: true, data: prompts });
-
-  } catch (error) {
-    console.error('getPrompts error:', error);
-    return JSON.stringify({ success: false, error: error.toString() });
-  }
-}
 
 function simpleTest() {
   console.log('Simple test started');

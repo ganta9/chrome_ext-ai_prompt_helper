@@ -1,34 +1,90 @@
 /**
- * AI Prompt Helper v6.0.0 - Popup Script
- * シンプル設定画面のJavaScript
+ * AI Prompt Helper v6.1.0 - Popup Script
+ * ローカルファースト・ゼロ設定 プロンプト管理システム
  */
 
 // ==========================================================================
-// グローバル変数
+// グローバル変数とデフォルトデータ
 // ==========================================================================
 
-let isLoading = false;
+let currentPrompts = [];
+let isEditing = false;
+let editingIndex = -1;
+
+// デフォルトプロンプトデータ
+const DEFAULT_PROMPTS = [
+    {
+        id: 'default_1',
+        title: '文章校正',
+        prompt: '次の文章を校正してください：\n\n[ここに文章を貼り付けてください]',
+        memo: '基本的な文章校正用プロンプト',
+        tags: '校正,文章,基本'
+    },
+    {
+        id: 'default_2',
+        title: '要約作成',
+        prompt: '以下の内容を300文字程度で要約してください：\n\n[ここに内容を貼り付けてください]',
+        memo: '長文の要約用プロンプト',
+        tags: '要約,文章,効率'
+    },
+    {
+        id: 'default_3',
+        title: 'コードレビュー',
+        prompt: '以下のコードをレビューし、改善点があれば教えてください：\n\n```\n[ここにコードを貼り付けてください]\n```',
+        memo: 'プログラムのコードレビュー用',
+        tags: 'コード,レビュー,プログラミング'
+    },
+    {
+        id: 'default_4',
+        title: '翻訳（日→英）',
+        prompt: '次の日本語を自然な英語に翻訳してください：\n\n[ここに日本語を貼り付けてください]',
+        memo: '日本語から英語への翻訳',
+        tags: '翻訳,日英,言語'
+    },
+    {
+        id: 'default_5',
+        title: 'アイデア出し',
+        prompt: '以下のテーマについて、創造的なアイデアを10個提案してください：\n\n[ここにテーマを記入してください]',
+        memo: 'ブレインストーミング用プロンプト',
+        tags: 'アイデア,創造,ブレスト'
+    }
+];
 
 // ==========================================================================
 // 初期化
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('AI Prompt Helper Popup v6.0.0 初期化開始');
-    
+    console.log('AI Prompt Helper v6.1.0 初期化開始');
+
     try {
-        await initializePopup();
+        await initializeData();
         setupEventListeners();
+        updatePromptList();
         console.log('Popup初期化完了');
     } catch (error) {
-        console.error('Popup初期化エラー:', error);
+        console.error('初期化エラー:', error);
         showStatus('初期化に失敗しました', 'error');
     }
 });
 
-async function initializePopup() {
-    // 保存されている設定を読み込み
-    await loadSettings();
+async function initializeData() {
+    try {
+        const result = await chrome.storage.local.get(['prompts']);
+
+        if (!result.prompts || result.prompts.length === 0) {
+            // デフォルトプロンプトをロード
+            currentPrompts = [...DEFAULT_PROMPTS];
+            await chrome.storage.local.set({ prompts: currentPrompts });
+            console.log('デフォルトプロンプトを初期化しました');
+        } else {
+            currentPrompts = result.prompts;
+            console.log(`${currentPrompts.length}件のプロンプトを読み込みました`);
+        }
+    } catch (error) {
+        console.error('データ初期化エラー:', error);
+        currentPrompts = [...DEFAULT_PROMPTS];
+    }
 }
 
 // ==========================================================================
@@ -36,169 +92,238 @@ async function initializePopup() {
 // ==========================================================================
 
 function setupEventListeners() {
-    // 設定保存ボタン
-    document.getElementById('save-settings').addEventListener('click', saveSettings);
-    
-    // 接続テストボタン
-    document.getElementById('test-connection').addEventListener('click', testConnection);
-    
-    // 編集サイトを開くボタン
-    document.getElementById('open-editor').addEventListener('click', openEditor);
-    
-    // プロンプトデータ更新ボタン
-    document.getElementById('manual-update').addEventListener('click', manualUpdate);
-    
-    // URLバリデーション
-    document.getElementById('github-pages-url').addEventListener('input', validateUrl);
-    
-    // Enterキーで保存
-    ['github-pages-url', 'spreadsheet-id', 'gas-url'].forEach(id => {
-        document.getElementById(id).addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                saveSettings();
-            }
-        });
+    // 新規追加ボタン
+    document.getElementById('add-prompt-btn').addEventListener('click', () => {
+        showEditor();
+    });
+
+    // 検索フィルター
+    document.getElementById('search-input').addEventListener('input', handleSearch);
+
+    // エディター関連
+    document.getElementById('save-btn').addEventListener('click', savePrompt);
+    document.getElementById('cancel-btn').addEventListener('click', hideEditor);
+    document.getElementById('delete-btn').addEventListener('click', deletePrompt);
+
+    // 全削除（デバッグ用）
+    document.getElementById('reset-btn').addEventListener('click', resetAllPrompts);
+
+    // Escキーでエディターを閉じる
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isEditing) {
+            hideEditor();
+        }
     });
 }
 
 // ==========================================================================
-// 設定の読み込みと保存
+// プロンプト表示・管理
 // ==========================================================================
 
-async function loadSettings() {
-    console.log('設定読み込み開始');
-    
+function updatePromptList(searchTerm = '') {
+    const listContainer = document.getElementById('prompt-list');
+    const filteredPrompts = searchTerm ?
+        currentPrompts.filter(p =>
+            p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.tags.toLowerCase().includes(searchTerm.toLowerCase())
+        ) : currentPrompts;
+
+    if (filteredPrompts.length === 0) {
+        listContainer.innerHTML = `
+            <div class="empty-state">
+                <p>プロンプトがありません</p>
+                <button onclick="showEditor()" class="btn btn-primary">最初のプロンプトを作成</button>
+            </div>
+        `;
+        return;
+    }
+
+    listContainer.innerHTML = filteredPrompts.map((prompt, index) => `
+        <div class="prompt-item" data-index="${currentPrompts.indexOf(prompt)}">
+            <div class="prompt-header">
+                <h3 class="prompt-title">${escapeHtml(prompt.title)}</h3>
+                <div class="prompt-actions">
+                    <button class="btn btn-sm" onclick="usePrompt(${currentPrompts.indexOf(prompt)})" title="使用">
+                        📋
+                    </button>
+                    <button class="btn btn-sm" onclick="editPrompt(${currentPrompts.indexOf(prompt)})" title="編集">
+                        ✏️
+                    </button>
+                </div>
+            </div>
+            <div class="prompt-preview">${escapeHtml(prompt.prompt.substring(0, 100))}${prompt.prompt.length > 100 ? '...' : ''}</div>
+            <div class="prompt-tags">${prompt.tags.split(',').map(tag => `<span class="tag">${escapeHtml(tag.trim())}</span>`).join('')}</div>
+        </div>
+    `).join('');
+
+    // 統計情報更新
+    document.getElementById('prompt-count').textContent = `${currentPrompts.length}件のプロンプト`;
+}
+
+function handleSearch(e) {
+    updatePromptList(e.target.value);
+}
+
+// ==========================================================================
+// プロンプト使用（AIサイトに送信）
+// ==========================================================================
+
+async function usePrompt(index) {
+    const prompt = currentPrompts[index];
+    if (!prompt) return;
+
     try {
-        const result = await chrome.storage.sync.get([
-            'githubPagesUrl',
-            'spreadsheetId',
-            'gasUrl'
-        ]);
+        // アクティブタブにプロンプトを送信
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-        // GitHub Pages URL
-        const githubPagesUrl = result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
-        document.getElementById('github-pages-url').value = githubPagesUrl;
-
-        // Google Sheets設定
-        document.getElementById('spreadsheet-id').value = result.spreadsheetId || '';
-        document.getElementById('gas-url').value = result.gasUrl || 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec';
-
-        // プロンプトキャッシュ状態を表示
-        updatePromptCacheStatus();
-
-        console.log('設定読み込み完了:', result);
+        chrome.tabs.sendMessage(tab.id, {
+            action: 'insertPrompt',
+            data: {
+                title: prompt.title,
+                prompt: prompt.prompt
+            }
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                showStatus('プロンプトの挿入に失敗しました', 'error');
+                console.error('送信エラー:', chrome.runtime.lastError);
+            } else if (response && response.success) {
+                showStatus('プロンプトを挿入しました', 'success');
+                window.close();
+            } else {
+                showStatus('対応サイトではありません', 'warning');
+            }
+        });
     } catch (error) {
-        console.error('設定読み込みエラー:', error);
-        showStatus('設定の読み込みに失敗しました', 'error');
+        console.error('プロンプト使用エラー:', error);
+        showStatus('エラーが発生しました', 'error');
     }
 }
 
-async function saveSettings() {
-    if (isLoading) return;
-    
-    console.log('設定保存開始');
-    setLoading(true);
-    
+// ==========================================================================
+// プロンプト編集機能
+// ==========================================================================
+
+function showEditor(index = -1) {
+    isEditing = true;
+    editingIndex = index;
+
+    const isNew = index === -1;
+    const prompt = isNew ? { title: '', prompt: '', memo: '', tags: '' } : currentPrompts[index];
+
+    // フォームにデータを入力
+    document.getElementById('title-input').value = prompt.title;
+    document.getElementById('prompt-input').value = prompt.prompt;
+    document.getElementById('memo-input').value = prompt.memo;
+    document.getElementById('tags-input').value = prompt.tags;
+
+    // UI表示切り替え
+    document.getElementById('main-view').style.display = 'none';
+    document.getElementById('editor-view').style.display = 'block';
+    document.getElementById('delete-btn').style.display = isNew ? 'none' : 'inline-block';
+
+    // タイトル入力にフォーカス
+    document.getElementById('title-input').focus();
+}
+
+function hideEditor() {
+    isEditing = false;
+    editingIndex = -1;
+
+    // フォームクリア
+    document.getElementById('title-input').value = '';
+    document.getElementById('prompt-input').value = '';
+    document.getElementById('memo-input').value = '';
+    document.getElementById('tags-input').value = '';
+
+    // UI表示切り替え
+    document.getElementById('editor-view').style.display = 'none';
+    document.getElementById('main-view').style.display = 'block';
+}
+
+function editPrompt(index) {
+    showEditor(index);
+}
+
+async function savePrompt() {
+    const title = document.getElementById('title-input').value.trim();
+    const prompt = document.getElementById('prompt-input').value.trim();
+    const memo = document.getElementById('memo-input').value.trim();
+    const tags = document.getElementById('tags-input').value.trim();
+
+    if (!title || !prompt) {
+        showStatus('タイトルとプロンプトは必須です', 'error');
+        return;
+    }
+
     try {
-        // 入力値を取得
-        const githubPagesUrl = document.getElementById('github-pages-url').value.trim();
-        const spreadsheetId = document.getElementById('spreadsheet-id').value.trim();
-        const gasUrl = document.getElementById('gas-url').value.trim();
-
-        // バリデーション
-        if (!githubPagesUrl) {
-            throw new Error('GitHub Pages URLを入力してください');
-        }
-
-        if (!isValidUrl(githubPagesUrl)) {
-            throw new Error('有効なGitHub Pages URLを入力してください');
-        }
-
-        // 設定を保存
-        const settings = {
-            githubPagesUrl,
-            spreadsheetId,
-            gasUrl: gasUrl || 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec',
-            lastUpdated: Date.now()
+        const promptData = {
+            id: editingIndex === -1 ? 'user_' + Date.now() : currentPrompts[editingIndex].id,
+            title,
+            prompt,
+            memo,
+            tags,
+            created_at: editingIndex === -1 ? new Date().toISOString() : currentPrompts[editingIndex].created_at,
+            updated_at: new Date().toISOString()
         };
 
-        await chrome.storage.sync.set(settings);
-        
-        console.log('設定保存完了:', settings);
-        showStatus('設定を保存しました', 'success');
-        
+        if (editingIndex === -1) {
+            // 新規追加
+            currentPrompts.push(promptData);
+        } else {
+            // 更新
+            currentPrompts[editingIndex] = promptData;
+        }
+
+        await chrome.storage.local.set({ prompts: currentPrompts });
+
+        hideEditor();
+        updatePromptList();
+        showStatus('プロンプトを保存しました', 'success');
+
     } catch (error) {
-        console.error('設定保存エラー:', error);
-        showStatus(error.message || '設定の保存に失敗しました', 'error');
-    } finally {
-        setLoading(false);
+        console.error('保存エラー:', error);
+        showStatus('保存に失敗しました', 'error');
+    }
+}
+
+async function deletePrompt() {
+    if (editingIndex === -1 || !confirm('このプロンプトを削除しますか？')) {
+        return;
+    }
+
+    try {
+        currentPrompts.splice(editingIndex, 1);
+        await chrome.storage.local.set({ prompts: currentPrompts });
+
+        hideEditor();
+        updatePromptList();
+        showStatus('プロンプトを削除しました', 'success');
+
+    } catch (error) {
+        console.error('削除エラー:', error);
+        showStatus('削除に失敗しました', 'error');
     }
 }
 
 // ==========================================================================
-// 接続テスト
+// デバッグ・リセット機能
 // ==========================================================================
 
-async function testConnection() {
-    if (isLoading) return;
-    
-    console.log('接続テスト開始');
-    setLoading(true);
-    
-    try {
-        const githubPagesUrl = document.getElementById('github-pages-url').value.trim();
-        const gasUrl = document.getElementById('gas-url').value.trim();
-        
-        if (!githubPagesUrl) {
-            throw new Error('GitHub Pages URLを入力してください');
-        }
-
-        // GitHub Pagesの接続テスト
-        showStatus('GitHub Pagesへの接続をテスト中...', 'warning');
-        
-        const githubResponse = await fetch(githubPagesUrl, {
-            method: 'GET',
-            mode: 'no-cors'
-        });
-        
-        console.log('GitHub Pages接続テスト完了');
-
-        // Google Apps Scriptの接続テスト (URLが設定されている場合)
-        if (gasUrl) {
-            showStatus('Google Apps Scriptへの接続をテスト中...', 'warning');
-            
-            const gasResponse = await fetch(gasUrl, {
-                method: 'GET',
-                mode: 'no-cors'
-            });
-            
-            console.log('Google Apps Script接続テスト完了');
-        }
-
-        showStatus('接続テストが完了しました', 'success');
-        
-    } catch (error) {
-        console.error('接続テストエラー:', error);
-        showStatus('接続テストに失敗しました', 'error');
-    } finally {
-        setLoading(false);
+async function resetAllPrompts() {
+    if (!confirm('全てのプロンプトを削除し、デフォルトに戻しますか？')) {
+        return;
     }
-}
 
-// ==========================================================================
-// 編集サイトを開く
-// ==========================================================================
-
-async function openEditor() {
     try {
-        const result = await chrome.storage.sync.get(['githubPagesUrl']);
-        const url = result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
-        
-        chrome.tabs.create({ url });
-        window.close();
+        currentPrompts = [...DEFAULT_PROMPTS];
+        await chrome.storage.local.set({ prompts: currentPrompts });
+
+        updatePromptList();
+        showStatus('デフォルトプロンプトに戻しました', 'success');
+
     } catch (error) {
-        console.error('サイト開放エラー:', error);
-        showStatus('サイトを開けませんでした', 'error');
+        console.error('リセットエラー:', error);
+        showStatus('リセットに失敗しました', 'error');
     }
 }
 
@@ -206,55 +331,33 @@ async function openEditor() {
 // ユーティリティ関数
 // ==========================================================================
 
-function isValidUrl(string) {
-    try {
-        const url = new URL(string);
-        return url.protocol === 'http:' || url.protocol === 'https:';
-    } catch (_) {
-        return false;
-    }
-}
-
-function validateUrl() {
-    const urlInput = document.getElementById('github-pages-url');
-    const url = urlInput.value.trim();
-    
-    if (url && !isValidUrl(url)) {
-        urlInput.style.borderColor = 'var(--danger)';
-    } else {
-        urlInput.style.borderColor = 'var(--border)';
-    }
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function showStatus(message, type = 'info') {
-    const statusElement = document.getElementById('settings-status');
-    statusElement.textContent = message;
-    statusElement.className = `status ${type}`;
-    statusElement.style.display = 'block';
-    
-    // 3秒後に非表示
-    setTimeout(() => {
-        statusElement.style.display = 'none';
-    }, 3000);
-}
+    // 既存のステータス要素があれば削除
+    const existingStatus = document.querySelector('.status-message');
+    if (existingStatus) {
+        existingStatus.remove();
+    }
 
-function setLoading(loading) {
-    isLoading = loading;
-    const buttons = document.querySelectorAll('button');
-    const inputs = document.querySelectorAll('input');
-    
-    buttons.forEach(btn => {
-        btn.disabled = loading;
-        if (loading) {
-            btn.classList.add('loading');
-        } else {
-            btn.classList.remove('loading');
+    // 新しいステータスメッセージを作成
+    const statusElement = document.createElement('div');
+    statusElement.className = `status-message ${type}`;
+    statusElement.textContent = message;
+
+    // ボディの先頭に挿入
+    document.body.insertBefore(statusElement, document.body.firstChild);
+
+    // 3秒後に削除
+    setTimeout(() => {
+        if (statusElement.parentNode) {
+            statusElement.remove();
         }
-    });
-    
-    inputs.forEach(input => {
-        input.disabled = loading;
-    });
+    }, 3000);
 }
 
 // ==========================================================================
@@ -271,55 +374,4 @@ window.addEventListener('unhandledrejection', (event) => {
     showStatus('予期しないエラーが発生しました', 'error');
 });
 
-// ==========================================================================
-// 新規追加機能
-// ==========================================================================
-
-async function updatePromptCacheStatus() {
-    try {
-        chrome.runtime.sendMessage({action: 'getPrompts'}, (response) => {
-            const statusElement = document.getElementById('prompt-cache-status');
-            if (response && response.success) {
-                const count = response.data.length || 0;
-                const lastSync = response.lastSync ? new Date(response.lastSync).toLocaleString() : '未同期';
-                statusElement.textContent = `${count}件のプロンプト | 最終更新: ${lastSync}`;
-                statusElement.className = 'status success';
-            } else {
-                statusElement.textContent = 'プロンプトデータなし';
-                statusElement.className = 'status warning';
-            }
-        });
-    } catch (error) {
-        console.error('プロンプトキャッシュ状態更新エラー:', error);
-    }
-}
-
-async function manualUpdate() {
-    if (isLoading) return;
-    
-    console.log('手動プロンプト更新開始');
-    setLoading(true);
-    
-    try {
-        showStatus('プロンプトデータを更新中...', 'warning');
-        
-        chrome.runtime.sendMessage({action: 'updatePrompts'}, (response) => {
-            if (response && response.success) {
-                console.log('手動更新完了:', response.count + '件');
-                showStatus(`${response.count}件のプロンプトを更新しました`, 'success');
-                updatePromptCacheStatus();
-            } else {
-                console.error('手動更新失敗:', response?.error);
-                showStatus('プロンプト更新に失敗しました: ' + (response?.error || '不明なエラー'), 'error');
-            }
-            setLoading(false);
-        });
-        
-    } catch (error) {
-        console.error('手動更新エラー:', error);
-        showStatus('更新処理でエラーが発生しました', 'error');
-        setLoading(false);
-    }
-}
-
-console.log('AI Prompt Helper Popup Script v6.0.0 loaded');
+console.log('AI Prompt Helper v6.1.0 Popup Script loaded - ローカルファースト版');

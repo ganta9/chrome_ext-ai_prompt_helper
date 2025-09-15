@@ -1,16 +1,15 @@
 /**
- * AI Prompt Helper v6.0.0 - Content Script
- * GitHub Pages編集サイト連携対応
+ * AI Prompt Helper v6.1.0 - Content Script
+ * ローカルファースト・ゼロ設定 プロンプト挿入システム
  */
 
 // ==========================================================================
 // グローバル変数
 // ==========================================================================
 
-let promptHelperButton = null;
-let promptHelperPanel = null;
 let isInitialized = false;
-let isPanelOpen = false;
+let promptButton = null;
+let currentSite = null;
 
 // ==========================================================================
 // 初期化
@@ -24,681 +23,277 @@ if (document.readyState === 'loading') {
 }
 
 async function init() {
-  const site = detectAISite();
-  if (!site) {
+  currentSite = detectAISite();
+  if (!currentSite) {
     console.log('AI Prompt Helper: 対応サイトではありません');
     return;
   }
-  
-  console.log(`AI Prompt Helper v6.0.0 初期化開始: ${site}`);
-  
-  // バックグラウンドでプロンプトデータ更新
+
+  console.log(`AI Prompt Helper v6.1.0 初期化開始: ${currentSite}`);
+
   try {
-    chrome.runtime.sendMessage({action: 'updatePrompts'}, (response) => {
-      if (response && response.success) {
-        console.log('プロンプトデータ更新完了:', response.count + '件');
-      } else {
-        console.warn('プロンプトデータ更新失敗:', response?.error || '不明なエラー');
-      }
-    });
-  } catch (error) {
-    console.warn('バックグラウンド更新エラー:', error);
-  }
-  
-  try {
-    // 少し待ってからボタンを作成
+    // 少し待ってからUIを作成（サイトのロード完了待ち）
     setTimeout(() => {
       createPromptButton();
       setupMessageListener();
+      setupDOMObserver();
       isInitialized = true;
-      console.log('AI Prompt Helper v6.0.0 初期化完了');
+      console.log('AI Prompt Helper v6.1.0 初期化完了');
     }, 2000);
-    
+
   } catch (error) {
     console.error('AI Prompt Helper 初期化エラー:', error);
   }
 }
 
-// ページ変更の監視（SPA対応）
-const observer = new MutationObserver(() => {
-  if (isInitialized && !document.getElementById('prompt-helper-btn')) {
-    console.log('ボタンが削除されたため再作成');
-    createPromptButton();
-  }
-  if (isInitialized && isPanelOpen && !document.getElementById('prompt-helper-panel')) {
-    console.log('パネルが削除されたため再作成');
-    isPanelOpen = false;
-  }
-});
-
-observer.observe(document.body, {
-  childList: true,
-  subtree: true
-});
-
 // ==========================================================================
-// サイト判定
+// AIサイト判定
 // ==========================================================================
 
 function detectAISite() {
   const hostname = window.location.hostname;
+  const url = window.location.href;
+
   if (hostname.includes('openai.com') || hostname.includes('chatgpt.com')) {
     return 'chatgpt';
   } else if (hostname.includes('claude.ai')) {
     return 'claude';
   } else if (hostname.includes('gemini.google.com') || hostname.includes('bard.google.com')) {
     return 'gemini';
-  } else if (hostname.includes('copilot.microsoft.com') || hostname.includes('microsoft.com/copilot')) {
+  } else if (hostname.includes('copilot.microsoft.com') || url.includes('microsoft.com/copilot')) {
     return 'copilot';
   } else if (hostname.includes('perplexity.ai')) {
     return 'perplexity';
+  } else if (hostname.includes('felo.ai')) {
+    return 'felo';
+  } else if (hostname.includes('notebooklm.google.com')) {
+    return 'notebooklm';
+  } else if (hostname.includes('grok.com') || hostname.includes('x.ai')) {
+    return 'grok';
+  } else if (hostname.includes('genspark.ai')) {
+    return 'genspark';
   }
+
   return null;
 }
 
 // ==========================================================================
-// 固定ボタンの作成
+// プロンプトボタンの作成
 // ==========================================================================
 
 function createPromptButton() {
-  // 既存のボタンを削除
-  const existingBtn = document.getElementById('prompt-helper-btn');
-  if (existingBtn) {
-    existingBtn.remove();
+  // 既存のボタンがあれば削除
+  if (promptButton) {
+    promptButton.remove();
   }
-  
-  // ボタン要素を作成
-  const button = document.createElement('button');
-  button.id = 'prompt-helper-btn';
-  button.innerHTML = '📝';
-  button.title = 'AI Prompt Helper を開く';
-  button.className = 'prompt-helper-fixed-btn';
-  
-  // スタイルを設定
-  button.style.cssText = `
-    position: fixed !important;
-    top: 50% !important;
-    right: 20px !important;
-    transform: translateY(-50%) !important;
-    z-index: 10000 !important;
-    width: 50px !important;
-    height: 50px !important;
-    border-radius: 25px !important;
-    background: #4f46e5 !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-    font-size: 20px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: all 0.3s ease !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    user-select: none !important;
-  `;
-  
-  // ホバー効果のイベントリスナー
-  button.addEventListener('mouseenter', () => {
-    button.style.transform = 'translateY(-50%) scale(1.1) !important';
-    button.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25) !important';
+
+  // プロンプトボタンを作成
+  promptButton = document.createElement('button');
+  promptButton.id = 'ai-prompt-helper-btn';
+  promptButton.innerHTML = '📝';
+  promptButton.title = 'AI Prompt Helper - プロンプトを選択';
+
+  // ボタンのスタイル設定
+  Object.assign(promptButton.style, {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    backgroundColor: '#06b6d4',
+    color: 'white',
+    border: 'none',
+    fontSize: '20px',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(6, 182, 212, 0.3)',
+    zIndex: '999999',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'system-ui, -apple-system, sans-serif'
   });
-  
-  button.addEventListener('mouseleave', () => {
-    button.style.transform = 'translateY(-50%) scale(1) !important';
-    button.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15) !important';
+
+  // ホバー効果
+  promptButton.addEventListener('mouseenter', () => {
+    promptButton.style.transform = 'scale(1.1)';
+    promptButton.style.boxShadow = '0 6px 16px rgba(6, 182, 212, 0.4)';
   });
-  
-  button.addEventListener('mousedown', () => {
-    button.style.transform = 'translateY(-50%) scale(0.95) !important';
+
+  promptButton.addEventListener('mouseleave', () => {
+    promptButton.style.transform = 'scale(1)';
+    promptButton.style.boxShadow = '0 4px 12px rgba(6, 182, 212, 0.3)';
   });
-  
-  button.addEventListener('mouseup', () => {
-    button.style.transform = 'translateY(-50%) scale(1.1) !important';
-  });
-  
+
   // クリックイベント
-  button.addEventListener('click', togglePromptPanel);
-  
-  // ボタンを画面に追加
-  document.body.appendChild(button);
-  promptHelperButton = button;
-  
-  console.log('プロンプトヘルパーボタンを作成しました');
-}
-
-// ==========================================================================
-// GitHub Pages編集サイト連携
-// ==========================================================================
-
-async function togglePromptPanel() {
-  console.log('togglePromptPanel が呼び出されました, isPanelOpen:', isPanelOpen);
-  try {
-    if (isPanelOpen) {
-      console.log('パネルを閉じる処理を開始');
-      closePromptPanel();
-    } else {
-      console.log('パネルを開く処理を開始');
-      await openPromptPanel();
-    }
-  } catch (error) {
-    console.error('togglePromptPanel エラー:', error);
-  }
-}
-
-async function openPromptPanel() {
-  try {
-    console.log('openPromptPanel: ローカルデータから実行開始');
-    
-    // ローカルキャッシュからプロンプトデータを取得
-    chrome.runtime.sendMessage({action: 'getPrompts'}, (response) => {
-      if (response && response.success) {
-        const prompts = response.data || [];
-        console.log('ローカルプロンプトデータ取得:', prompts.length + '件');
-        
-        // プロンプト選択パネルを作成
-        createPromptSelectionPanel(prompts);
-        
-        // ボタンの表示を変更
-        promptHelperButton.innerHTML = '✕';
-        promptHelperButton.style.background = '#ef4444 !important';
-        promptHelperButton.title = 'プロンプトパネルを閉じる';
-        
-        isPanelOpen = true;
-        showNotification(`${prompts.length}件のプロンプトを読み込みました`, 'success');
-        
-      } else {
-        console.warn('ローカルプロンプトデータが見つかりません');
-        showNotification('プロンプトデータがありません。設定画面で更新してください。', 'warning');
-      }
-    });
-    
-  } catch (error) {
-    console.error('プロンプトパネル起動エラー:', error);
-    showNotification('プロンプトパネルを開けませんでした', 'error');
-  }
-}
-
-function closePromptPanel() {
-  if (promptHelperPanel) {
-    promptHelperPanel.remove();
-    promptHelperPanel = null;
-  }
-  
-  // ボタンを元に戻す
-  promptHelperButton.innerHTML = '📝';
-  promptHelperButton.style.background = '#4f46e5 !important';
-  promptHelperButton.title = 'AI Prompt Helper を開く';
-  
-  isPanelOpen = false;
-  console.log('プロンプトパネルを閉じました');
-}
-
-function createPromptPanel(githubPagesUrl) {
-  console.log('createPromptPanel: パネル作成開始, URL:', githubPagesUrl);
-  
-  // 既存のパネルを削除
-  if (promptHelperPanel) {
-    console.log('createPromptPanel: 既存パネルを削除');
-    promptHelperPanel.remove();
-  }
-  
-  // パネル要素を作成
-  console.log('createPromptPanel: div要素を作成中');
-  const panel = document.createElement('div');
-  panel.id = 'prompt-helper-panel';
-  panel.style.cssText = `
-    position: fixed !important;
-    top: 0 !important;
-    right: 0 !important;
-    width: 90vw !important;
-    height: 100vh !important;
-    z-index: 999999 !important;
-    background: white !important;
-    border-left: 2px solid #4f46e5 !important;
-    box-shadow: -4px 0 20px rgba(0,0,0,0.3) !important;
-    transform: translateX(0) !important;
-    transition: transform 0.3s ease !important;
-  `;
-  
-  // iframe要素を作成
-  const iframe = document.createElement('iframe');
-  iframe.src = githubPagesUrl;
-  iframe.style.cssText = `
-    width: 100% !important;
-    height: 100% !important;
-    border: none !important;
-    background: white !important;
-  `;
-  
-  // 閉じるボタンを作成
-  const closeButton = document.createElement('button');
-  closeButton.innerHTML = '✕';
-  closeButton.style.cssText = `
-    position: absolute !important;
-    top: 10px !important;
-    right: 10px !important;
-    width: 30px !important;
-    height: 30px !important;
-    border: none !important;
-    background: #ef4444 !important;
-    color: white !important;
-    border-radius: 15px !important;
-    cursor: pointer !important;
-    z-index: 10000 !important;
-    font-size: 14px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  `;
-  
-  closeButton.addEventListener('click', closePromptPanel);
-  
-  // パネルに要素を追加
-  panel.appendChild(iframe);
-  panel.appendChild(closeButton);
-  
-  // 画面に追加
-  console.log('createPromptPanel: document.bodyに追加中');
-  document.body.appendChild(panel);
-  promptHelperPanel = panel;
-  
-  // パネル表示確認用の追加スタイル
-  console.log('createPromptPanel: パネル表示確認用スタイル適用');
-  panel.style.display = 'block';
-  panel.style.visibility = 'visible';
-  
-  console.log('createPromptPanel: プロンプトパネル作成完了');
-}
-
-// ローカルプロンプトデータから選択パネルを作成
-function createPromptSelectionPanel(prompts) {
-  console.log('createPromptSelectionPanel: パネル作成開始');
-  
-  // 既存のパネルを削除
-  if (promptHelperPanel) {
-    promptHelperPanel.remove();
-    console.log('既存パネルを削除');
-  }
-
-  // パネルを作成
-  promptHelperPanel = document.createElement('div');
-  promptHelperPanel.id = 'ai-prompt-helper-panel';
-  promptHelperPanel.innerHTML = `
-    <div style="
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 600px;
-      max-height: 80vh;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 20px;
-      z-index: 10000;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-      color: white;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui;
-      overflow: hidden;
-    ">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3 style="margin: 0; color: #8b5cf6; font-size: 18px;">🚀 AI Prompt Helper</h3>
-        <button id="close-panel-btn" style="
-          background: #ef4444;
-          border: none;
-          color: white;
-          width: 30px;
-          height: 30px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 16px;
-        ">✕</button>
-      </div>
-      
-      <div style="margin-bottom: 15px;">
-        <input type="text" id="prompt-search" placeholder="プロンプトを検索..." style="
-          width: 100%;
-          background: #2d2d2d;
-          border: 1px solid #444;
-          border-radius: 6px;
-          padding: 10px;
-          color: white;
-          font-size: 14px;
-        ">
-      </div>
-      
-      <div id="prompt-list" style="
-        max-height: 400px;
-        overflow-y: auto;
-        margin-bottom: 15px;
-      ">
-        ${prompts.length === 0 
-          ? '<div style="text-align: center; padding: 40px; color: #666;">プロンプトがありません</div>'
-          : prompts.map((prompt, index) => `
-            <div class="prompt-item" data-index="${index}" style="
-              background: #2d2d2d;
-              margin-bottom: 8px;
-              padding: 12px;
-              border-radius: 8px;
-              cursor: pointer;
-              border: 1px solid #444;
-              transition: all 0.2s ease;
-            " onmouseover="this.style.background='#3d3d3d'" onmouseout="this.style.background='#2d2d2d'">
-              <div style="font-weight: 600; margin-bottom: 6px; color: #8b5cf6;">
-                ${prompt.title || 'タイトルなし'}
-              </div>
-              <div style="font-size: 13px; color: #ccc; line-height: 1.4; max-height: 60px; overflow: hidden;">
-                ${(prompt.content || '').substring(0, 100)}${(prompt.content || '').length > 100 ? '...' : ''}
-              </div>
-              ${prompt.tags ? `
-                <div style="margin-top: 8px;">
-                  ${prompt.tags.split(',').map(tag => `
-                    <span style="
-                      background: #8b5cf6;
-                      color: white;
-                      padding: 2px 8px;
-                      border-radius: 12px;
-                      font-size: 11px;
-                      margin-right: 6px;
-                    ">${tag.trim()}</span>
-                  `).join('')}
-                </div>
-              ` : ''}
-            </div>
-          `).join('')}
-      </div>
-      
-      <div style="text-align: center; font-size: 12px; color: #666;">
-        ${prompts.length}件のプロンプト | 最終更新: ${new Date().toLocaleString()}
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(promptHelperPanel);
-
-  // イベントリスナーを設定
-  document.getElementById('close-panel-btn').addEventListener('click', closePromptPanel);
-  
-  // プロンプト選択イベント
-  document.querySelectorAll('.prompt-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const index = parseInt(item.dataset.index);
-      const selectedPrompt = prompts[index];
-      if (selectedPrompt && selectedPrompt.content) {
-        insertPrompt(selectedPrompt.content);
-        closePromptPanel();
-        showNotification('プロンプトを挿入しました', 'success');
-      }
-    });
+  promptButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openPromptPopup();
   });
 
-  // 検索機能
-  document.getElementById('prompt-search').addEventListener('input', (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-    document.querySelectorAll('.prompt-item').forEach(item => {
-      const title = item.querySelector('div').textContent.toLowerCase();
-      const content = item.querySelector('div:nth-child(2)').textContent.toLowerCase();
-      if (title.includes(searchTerm) || content.includes(searchTerm)) {
-        item.style.display = 'block';
-      } else {
-        item.style.display = 'none';
+  // ページに追加
+  document.body.appendChild(promptButton);
+  console.log('プロンプトボタンを作成しました');
+}
+
+// ==========================================================================
+// プロンプト選択ポップアップ
+// ==========================================================================
+
+function openPromptPopup() {
+  try {
+    // Chrome拡張機能のポップアップを開く
+    chrome.runtime.sendMessage({ action: 'openPopup' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('ポップアップ開放エラー:', chrome.runtime.lastError);
+        showNotification('プロンプト管理画面を開けませんでした', 'error');
       }
     });
-  });
-
-  console.log('createPromptSelectionPanel: パネル作成完了');
-}
-
-// 設定からGitHub Pages URLを取得
-async function getGitHubPagesUrl() {
-  try {
-    const result = await chrome.storage.sync.get(['githubPagesUrl']);
-    return result.githubPagesUrl || 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
   } catch (error) {
-    console.error('設定取得エラー:', error);
-    // フォールバック用のデフォルトURL
-    return 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
+    console.error('ポップアップ開放エラー:', error);
+    showNotification('エラーが発生しました', 'error');
   }
 }
 
 // ==========================================================================
-// メッセージ受信（GitHub Pagesからのプロンプト選択）
-// ==========================================================================
-
-function setupMessageListener() {
-  window.addEventListener('message', handleMessage);
-  console.log('メッセージリスナーを設定しました');
-}
-
-function handleMessage(event) {
-  // 全メッセージをデバッグ用に一時的にログ出力
-  console.log('★ デバッグ: 全メッセージ受信:', {
-    origin: event.origin,
-    data: event.data,
-    type: event.data?.type
-  });
-
-  // PROMPT_SELECTEDメッセージの詳細ログ
-  if (event.data && event.data.type === 'PROMPT_SELECTED') {
-    console.log('✅ プロンプト選択メッセージを受信:', event);
-    console.log('✅ 受信オリジン:', event.origin);
-    console.log('✅ メッセージデータ:', event.data);
-  }
-
-  // セキュリティチェック：信頼できるオリジンからのメッセージのみ処理
-  if (!isValidOrigin(event.origin)) {
-    // PROMPT_SELECTEDメッセージの場合のみ警告を表示
-    if (event.data && event.data.type === 'PROMPT_SELECTED') {
-      console.error('❌ 信頼できないオリジンからのプロンプト選択メッセージ:', event.origin);
-      console.error('❌ 許可されているドメイン一覧:', ['ganta9.github.io', 'localhost', '127.0.0.1']);
-    }
-    return;
-  }
-  
-  if (event.data && event.data.type === 'PROMPT_SELECTED') {
-    console.log('プロンプト選択メッセージを受信:', event.data);
-
-    try {
-      // プロンプトを挿入
-      insertPrompt(event.data.prompt);
-
-      // パネルを自動で閉じる
-      console.log('プロンプト挿入完了、パネルを自動クローズ');
-      closePromptPanel();
-
-      showNotification(`プロンプト「${event.data.title}」を挿入しました`, 'success');
-    } catch (error) {
-      console.error('プロンプト挿入エラー:', error);
-      showNotification('プロンプトの挿入に失敗しました', 'error');
-    }
-  }
-
-  // INSERT_PROMPTメッセージ処理（v5.0.0互換の自動貼り付け機能）
-  if (event.data && event.data.type === 'INSERT_PROMPT') {
-    console.log('🚀 INSERT_PROMPT メッセージを受信:', event.data);
-
-    try {
-      // プロンプトをClaude.aiに直接挿入（v5.0.0のClipboard API方式）
-      insertPromptDirectly(event.data.prompt);
-
-      // パネルを自動で閉じる
-      console.log('✅ プロンプト自動挿入完了、パネルを自動クローズ');
-      closePromptPanel();
-
-      showNotification(`✅ 「${event.data.title}」を自動挿入しました`, 'success');
-    } catch (error) {
-      console.error('❌ プロンプト自動挿入エラー:', error);
-      showNotification('プロンプトの自動挿入に失敗しました', 'error');
-    }
-  }
-}
-
-// 安全なオリジンかチェック
-function isValidOrigin(origin) {
-  // 特定の許可されたオリジンリスト
-  const allowedOrigins = [
-    'https://ganta9.github.io',  // ユーザーのGitHub Pages
-    'https://localhost',
-    'https://127.0.0.1',
-    'http://localhost',
-    'http://127.0.0.1'
-  ];
-
-  // ドメインベースのチェック（フォールバック）
-  const allowedDomains = [
-    'github.io',
-    'localhost',
-    '127.0.0.1'
-  ];
-
-  // 完全一致チェック
-  const exactMatch = allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed + '/') || origin.startsWith(allowed + ':'));
-
-  // ドメイン部分一致チェック
-  const domainMatch = allowedDomains.some(domain => origin.includes(domain));
-
-  const isValid = exactMatch || domainMatch;
-
-  // 既知の無関係なオリジンはログを出力しない
-  const ignoredOrigins = [
-    'https://claude.ai',
-    'https://js.stripe.com',
-    'https://www.gstatic.com',
-    'https://fonts.googleapis.com'
-  ];
-
-  if (!isValid && !ignoredOrigins.some(ignored => origin.startsWith(ignored))) {
-    console.log('オリジンチェック:', origin, 'result:', isValid);
-  }
-
-  return isValid;
-}
-
-// ==========================================================================
-// テキストエリア検出
+// プロンプト挿入機能
 // ==========================================================================
 
 function findTextarea() {
-  const site = detectAISite();
-  
-  // サイト別の専用セレクタ
-  let siteSpecificSelectors = [];
-  
-  if (site === 'claude') {
-    siteSpecificSelectors = [
-      'div[contenteditable="true"][data-placeholder]',
-      'div[contenteditable="true"][placeholder]',
-      'div[contenteditable="true"]',
-      'div[role="textbox"]',
-      'textarea[placeholder*="message"]',
-      'textarea'
-    ];
-  } else if (site === 'chatgpt') {
-    siteSpecificSelectors = [
-      'textarea[data-testid="textbox"]',
+  // サイトごとの入力欄セレクター
+  const selectors = {
+    chatgpt: [
+      '#prompt-textarea',
+      'textarea[placeholder*="ChatGPT"]',
       'textarea[placeholder*="Message"]',
-      'textarea[placeholder*="メッセージ"]',
       'div[contenteditable="true"]',
       'textarea'
-    ];
-  } else if (site === 'gemini') {
-    siteSpecificSelectors = [
-      'textarea[placeholder*="Enter a prompt"]',
+    ],
+    claude: [
+      'div[contenteditable="true"]',
+      'textarea',
+      'div.ProseMirror',
+      '[data-testid="chat-input"]'
+    ],
+    gemini: [
+      'div[contenteditable="true"]',
+      'textarea',
+      'div.ql-editor',
+      '[data-testid="input-field"]'
+    ],
+    copilot: [
+      'textarea[placeholder*="Ask me anything"]',
       'div[contenteditable="true"]',
       'textarea'
-    ];
-  }
-  
-  // サイト専用セレクタで検索
-  for (const selector of siteSpecificSelectors) {
+    ],
+    perplexity: [
+      'textarea[placeholder*="Ask anything"]',
+      'div[contenteditable="true"]',
+      'textarea'
+    ],
+    felo: [
+      'textarea',
+      'div[contenteditable="true"]',
+      'input[type="text"]'
+    ],
+    notebooklm: [
+      'textarea',
+      'div[contenteditable="true"]',
+      'input[type="text"]'
+    ],
+    grok: [
+      'textarea',
+      'div[contenteditable="true"]',
+      'input[type="text"]'
+    ],
+    genspark: [
+      'textarea',
+      'div[contenteditable="true"]',
+      'input[type="text"]'
+    ]
+  };
+
+  const siteSelectors = selectors[currentSite] || selectors.chatgpt;
+
+  for (const selector of siteSelectors) {
     const elements = document.querySelectorAll(selector);
     for (const element of elements) {
-      if (isViableTextarea(element)) {
-        console.log(`入力欄を検出: ${selector}`, element);
+      // 要素が見えているかチェック
+      if (element.offsetParent !== null && !element.disabled && !element.readOnly) {
         return element;
       }
     }
   }
-  
-  // 汎用セレクタで検索
-  const generalSelectors = [
-    'textarea[placeholder*="message"]',
-    'textarea[placeholder*="メッセージ"]',
-    'textarea[data-testid="textbox"]',
-    'textarea[id*="prompt"]',
-    'textarea[class*="prompt"]',
-    'div[contenteditable="true"]',
-    'div[role="textbox"]'
-  ];
-  
-  for (const selector of generalSelectors) {
-    const element = document.querySelector(selector);
-    if (element && isVisible(element)) {
-      console.log(`汎用セレクタで入力欄検出: ${selector}`, element);
-      return element;
-    }
-  }
-  
-  console.warn('入力欄が見つかりませんでした');
+
   return null;
 }
 
-// 要素が表示されているかチェック
-function isVisible(element) {
-  if (!element) return false;
-  const rect = element.getBoundingClientRect();
-  const styles = getComputedStyle(element);
-  return rect.width > 0 && rect.height > 0 && 
-         rect.left >= 0 && rect.top >= 0 &&
-         styles.display !== 'none' &&
-         styles.visibility !== 'hidden' &&
-         styles.opacity !== '0';
-}
-
-// 実用的な入力欄かどうかを判定
-function isViableTextarea(element) {
-  if (!isVisible(element)) return false;
-  
-  const rect = element.getBoundingClientRect();
-  
-  // 最低限のサイズ要件
-  if (rect.width < 200 || rect.height < 30) return false;
-  
-  // 画面外は除外
-  if (rect.left < 0 || rect.top < 0) return false;
-  if (rect.right > window.innerWidth || rect.bottom > window.innerHeight) return false;
-  
-  return true;
-}
-
-// ==========================================================================
-// プロンプト挿入
-// ==========================================================================
-
-// v5.0.0互換の直接挿入機能（Clipboard API使用）
-function insertPromptDirectly(prompt) {
-  console.log('🚀 insertPromptDirectly 開始:', prompt);
-
-  const textarea = findTextarea();
-  if (!textarea) {
-    console.error('❌ テキストエリアが見つかりません');
-    throw new Error('入力エリアが見つかりません');
-  }
-
-  console.log('✅ テキストエリア発見:', textarea);
+async function insertPrompt(promptData) {
+  const { title, prompt } = promptData;
 
   try {
+    const textarea = findTextarea();
+
+    if (!textarea) {
+      showNotification('入力欄が見つかりませんでした', 'error');
+      return false;
+    }
+
+    // フォーカスを設定
     textarea.focus();
-    console.log('📝 フォーカス設定完了');
 
-    // Clipboard APIを使用する前に、まずテキストエリアをクリアし、inputイベントを発火
-    // これによりReactが変更を検知しやすくなる
-    textarea.textContent = '';
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    // 既存のテキストをクリア（サイトによって処理を分ける）
+    if (textarea.tagName.toLowerCase() === 'textarea' || textarea.tagName.toLowerCase() === 'input') {
+      // 通常のtextarea/input要素
+      textarea.value = '';
+      textarea.value = prompt;
 
-    navigator.clipboard.writeText(prompt).then(() => {
-      console.log('📋 クリップボードに書き込み完了');
+      // イベントを発火
+      ['input', 'change', 'keyup'].forEach(eventType => {
+        textarea.dispatchEvent(new Event(eventType, { bubbles: true }));
+      });
+
+    } else if (textarea.contentEditable === 'true') {
+      // contentEditable要素
+      // まずクリア
+      textarea.innerHTML = '';
+      textarea.textContent = '';
+
+      // プロンプトを挿入
+      if (currentSite === 'claude') {
+        // Claude.aiでは特別な処理
+        await insertToClaudeAI(textarea, prompt);
+      } else {
+        // その他のサイト
+        textarea.textContent = prompt;
+
+        // イベントを発火
+        ['input', 'change', 'keyup', 'compositionend'].forEach(eventType => {
+          textarea.dispatchEvent(new Event(eventType, { bubbles: true }));
+        });
+      }
+    }
+
+    // 成功通知
+    showNotification(`「${title}」を挿入しました`, 'success');
+    console.log('プロンプト挿入成功:', title);
+    return true;
+
+  } catch (error) {
+    console.error('プロンプト挿入エラー:', error);
+    showNotification('プロンプトの挿入に失敗しました', 'error');
+    return false;
+  }
+}
+
+// Claude.ai専用の挿入処理
+async function insertToClaudeAI(textarea, prompt) {
+  try {
+    // Clipboard APIを使用
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(prompt);
 
       // ペーストイベントをシミュレート
       const pasteEvent = new ClipboardEvent('paste', {
@@ -707,122 +302,33 @@ function insertPromptDirectly(prompt) {
         clipboardData: new DataTransfer()
       });
 
+      // クリップボードデータを設定
       pasteEvent.clipboardData.setData('text/plain', prompt);
+
+      // フォーカスしてペーストイベントを発火
+      textarea.focus();
       textarea.dispatchEvent(pasteEvent);
 
-      console.log('✅ ペーストイベント送信完了');
-    }).catch(error => {
-      console.error('❌ クリップボード操作エラー:', error);
-      // フォールバック: 通常のinsertPrompt
-      insertPrompt(prompt); // insertPrompt関数が呼ばれるので、そちらの修正で対応
-    });
+      // 念のため直接設定も試行
+      setTimeout(() => {
+        if (!textarea.textContent || textarea.textContent.trim() === '') {
+          textarea.textContent = prompt;
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }, 100);
 
-  } catch (error) {
-    console.error('❌ insertPromptDirectly エラー:', error);
-    // フォールバック: 通常のinsertPrompt
-    insertPrompt(prompt);
-  }
-}
-
-function insertPrompt(text) {
-  const textarea = findTextarea();
-  if (!textarea) {
-    throw new Error('入力欄が見つかりません');
-  }
-  
-  console.log('プロンプトを挿入:', text.substring(0, 50) + '...');
-  
-  textarea.focus();
-  
-  if (textarea.tagName === 'TEXTAREA') {
-    // TEXTAREA要素の場合
-    const currentValue = textarea.value;
-    const newValue = currentValue ? currentValue + '\n\n' + text : text;
-    
-    // 値を設定
-    textarea.value = newValue;
-    
-    // イベントを発火
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    textarea.dispatchEvent(new Event('change', { bubbles: true }));
-    
-    // カーソル位置を末尾に移動
-    textarea.setSelectionRange(newValue.length, newValue.length);
-    
-  } else {
-    // contenteditable要素の場合
-    const site = detectAISite();
-    const currentText = textarea.textContent || textarea.innerText || '';
-    const newText = currentText ? currentText + '\n\n' + text : text;
-    
-    if (site === 'claude' || site === 'chatgpt') {
-  console.log('Claude/ChatGPT検出、Clipboard APIを再試行:', site);
-  console.log('挿入予定テキスト:', newText.substring(0, 100) + '...');
-
-  textarea.focus();
-
-  navigator.clipboard.writeText(newText).then(() => {
-    console.log('📋 クリップボードへの書き込み完了');
-
-    // v5.0.0のアプローチ: クリップボード書き込み成功後にテキストエリアをクリア
-    textarea.textContent = '';
-    textarea.dispatchEvent(new Event('input', { bubbles: true })); // Reactにクリアを通知
-
-    const pasteEvent = new ClipboardEvent('paste', {
-      bubbles: true,
-      cancelable: true,
-      clipboardData: new DataTransfer()
-    });
-
-    pasteEvent.clipboardData.setData('text/plain', newText);
-    textarea.dispatchEvent(pasteEvent);
-
-    console.log('✅ ペーストイベント送信完了');
-
-    // ペースト後、Reactが変更を検知するのを助けるために再度inputイベントを発火
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-
-  }).catch((error) => {
-    console.error('❌ クリップボード操作エラー、execCommandをフォールバック:', error);
-    // Clipboard APIが失敗した場合、execCommandを試す
-    try {
-      textarea.textContent = ''; // クリア
-      textarea.dispatchEvent(new Event('input', { bubbles: true })); // Reactにクリアを通知
-      const success = document.execCommand('insertText', false, newText);
-      if (success) {
-        console.log('✅ execCommand("insertText") フォールバック成功');
-        textarea.dispatchEvent(new Event('input', { bubbles: true })); // Reactに通知
-      } else {
-        console.warn('⚠️ execCommand("insertText") も失敗。最終フォールバック。');
-        throw new Error('execCommand failed');
-      }
-    } catch (execError) {
-      console.error('❌ execCommand フォールバックエラー:', execError);
-      // 最終フォールバック: クリップボードコピーと手動ペーストを促す
-      navigator.clipboard.writeText(newText).then(() => {
-        showNotification('プロンプトをクリップボードにコピーしました。手動でペーストしてください。', 'warning');
-      }).catch(copyError => {
-        console.error('クリップボードコピー失敗:', copyError);
-        showNotification('プロンプトのコピーに失敗しました。', 'error');
-      });
-    }
-  });
-} else {
-      // その他のサイト
-      textarea.textContent = newText;
+    } else {
+      // Clipboard APIが使えない場合
+      textarea.textContent = prompt;
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
-    
-    // フォーカスを末尾に移動
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(textarea);
-    range.collapse(false);
-    selection.removeAllRanges();
-    selection.addRange(range);
+
+  } catch (error) {
+    console.warn('Claude.ai挿入エラー:', error);
+    // フォールバック
+    textarea.textContent = prompt;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  
-  console.log('プロンプト挿入完了');
 }
 
 // ==========================================================================
@@ -830,48 +336,52 @@ function insertPrompt(text) {
 // ==========================================================================
 
 function showNotification(message, type = 'info') {
-  // 既存の通知を削除
-  const existingNotification = document.getElementById('prompt-helper-notification');
+  // 既存の通知があれば削除
+  const existingNotification = document.getElementById('ai-prompt-helper-notification');
   if (existingNotification) {
     existingNotification.remove();
   }
-  
+
+  // 通知要素を作成
   const notification = document.createElement('div');
-  notification.id = 'prompt-helper-notification';
-  notification.innerHTML = `
-    <div style="
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      color: white;
-      font-weight: 500;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      border-radius: 8px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-    ">
-      <span style="font-size: 16px;">${getNotificationIcon(type)}</span>
-      <span>${escapeHtml(message)}</span>
-    </div>
-  `;
-  
-  notification.style.cssText = `
-    position: fixed !important;
-    top: 20px !important;
-    right: 20px !important;
-    z-index: 10001 !important;
-    background: ${getNotificationColor(type)} !important;
-    border-radius: 8px !important;
-    animation: slideInFromRight 0.3s ease !important;
-  `;
-  
-  // CSS アニメーションを定義
-  if (!document.getElementById('prompt-helper-styles')) {
-    const styles = document.createElement('style');
-    styles.id = 'prompt-helper-styles';
-    styles.textContent = `
-      @keyframes slideInFromRight {
+  notification.id = 'ai-prompt-helper-notification';
+  notification.textContent = message;
+
+  // 色設定
+  const colors = {
+    success: { bg: '#10b981', text: 'white' },
+    error: { bg: '#ef4444', text: 'white' },
+    warning: { bg: '#f59e0b', text: 'white' },
+    info: { bg: '#06b6d4', text: 'white' }
+  };
+
+  const color = colors[type] || colors.info;
+
+  // スタイル設定
+  Object.assign(notification.style, {
+    position: 'fixed',
+    top: '80px',
+    right: '20px',
+    backgroundColor: color.bg,
+    color: color.text,
+    padding: '12px 16px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '500',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    zIndex: '999998',
+    maxWidth: '300px',
+    wordWrap: 'break-word',
+    animation: 'slideIn 0.3s ease'
+  });
+
+  // アニメーションCSS
+  if (!document.getElementById('ai-prompt-helper-styles')) {
+    const style = document.createElement('style');
+    style.id = 'ai-prompt-helper-styles';
+    style.textContent = `
+      @keyframes slideIn {
         from {
           opacity: 0;
           transform: translateX(100%);
@@ -879,74 +389,82 @@ function showNotification(message, type = 'info') {
         to {
           opacity: 1;
           transform: translateX(0);
-        }
-      }
-      
-      @keyframes slideOutToRight {
-        from {
-          opacity: 1;
-          transform: translateX(0);
-        }
-        to {
-          opacity: 0;
-          transform: translateX(100%);
         }
       }
     `;
-    document.head.appendChild(styles);
+    document.head.appendChild(style);
   }
-  
+
+  // ページに追加
   document.body.appendChild(notification);
-  
-  // 3秒後に非表示
+
+  // 3秒後に削除
   setTimeout(() => {
-    notification.style.animation = 'slideOutToRight 0.3s ease';
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.remove();
-      }
-    }, 300);
+    if (notification.parentNode) {
+      notification.remove();
+    }
   }, 3000);
 }
 
-function getNotificationIcon(type) {
-  switch (type) {
-    case 'success': return '✓';
-    case 'error': return '✗';
-    case 'warning': return '⚠';
-    default: return 'ℹ';
-  }
-}
+// ==========================================================================
+// メッセージリスナー
+// ==========================================================================
 
-function getNotificationColor(type) {
-  switch (type) {
-    case 'success': return '#10b981';
-    case 'error': return '#ef4444';
-    case 'warning': return '#f59e0b';
-    default: return '#4f46e5';
-  }
-}
+function setupMessageListener() {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log('Content script でメッセージを受信:', message);
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+    if (message.action === 'insertPrompt') {
+      insertPrompt(message.data)
+        .then(success => {
+          sendResponse({ success });
+        })
+        .catch(error => {
+          console.error('プロンプト挿入処理エラー:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+
+      // 非同期処理のため
+      return true;
+    }
+
+    return false;
+  });
+
+  console.log('メッセージリスナーを設定しました');
 }
 
 // ==========================================================================
-// デバッグ用
+// DOM監視（SPA対応）
 // ==========================================================================
 
-// デバッグ用のグローバル変数
-if (typeof window !== 'undefined') {
-  window.promptHelper = {
-    detectAISite,
-    findTextarea,
-    insertPrompt,
-    togglePromptPanel,
-    openPromptPanel,
-    closePromptPanel,
-    showNotification,
-    version: '6.0.0'
-  };
+function setupDOMObserver() {
+  const observer = new MutationObserver(() => {
+    // ボタンが削除されていたら再作成
+    if (isInitialized && !document.getElementById('ai-prompt-helper-btn')) {
+      console.log('ボタンが削除されたため再作成');
+      createPromptButton();
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  console.log('DOM監視を開始しました');
 }
+
+// ==========================================================================
+// エラーハンドリング
+// ==========================================================================
+
+window.addEventListener('error', (event) => {
+  console.error('Content Script Error:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled Promise Rejection:', event.reason);
+});
+
+console.log('AI Prompt Helper v6.1.0 Content Script loaded - ローカルファースト版');
