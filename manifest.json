@@ -41,8 +41,8 @@
   "action": {
     "default_popup": "src/popup.html",
     "default_area": {
-      "width": 640,
-      "height": 750
+      "width": 440,
+      "height": 320
     }
   },
   "icons": {

@@ -5,86 +5,122 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Prompt Helper v7.0.0</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            width: 400px;
+            min-height: 300px;
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .version {
+            font-size: 12px;
+            color: #666;
+            background: #e3f2fd;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #2196f3;
+            box-shadow: 0 0 0 2px rgba(33,150,243,0.2);
+        }
+        .btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #1976d2;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+        .status {
+            margin-top: 16px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
 </head>
 
 <body>
-    <!-- ヘッダー -->
-    <div class="header">
-        <div class="header-title">
-            <span>📝</span>
-            AI Prompt Helper
-        </div>
-        <div class="version-badge">v7.0.0</div>
-        <button id="openSettingsButton" class="btn btn-secondary btn-sm" title="設定">⚙️</button>
-    </div>
-
-    <!-- GitHub Pages同期ボタン -->
-    <div id="sync-button-container" style="padding: 16px 20px 0px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <div class="prompt-count"></div>
-        <button class="refresh-btn btn btn-secondary btn-sm" title="最新データを取得">🔄</button>
-    </div>
-
-    <!-- メインビュー -->
-    <div id="main-view" class="main-view">
-        <!-- 検索バー -->
-        <div class="search-bar">
-            <input type="text" class="search-input" placeholder="タイトル、内容、タグで検索...">
+    <div class="container">
+        <div class="header">
+            <div class="title">📝 AI Prompt Helper</div>
+            <div class="version">v7.0.0</div>
         </div>
 
-        <!-- プロンプトコンテナ -->
-        <div class="prompts-container">
-            <!-- プロンプトアイテムが動的に生成される -->
-        </div>
-
-        <!-- 追加ボタン -->
-        <button id="add-prompt-btn" class="add-btn" title="新しいプロンプトを追加">+</button>
-    </div>
-
-    <!-- エディタービュー -->
-    <div id="editor-view" class="editor-view">
-        <div class="editor-form">
-            <div class="form-group">
-                <label class="form-label" for="title-input">タイトル *</label>
-                <input type="text" id="title-input" class="form-input" placeholder="プロンプトのタイトルを入力">
-            </div>
-
-            <div class="form-group">
-                <label class="form-label" for="prompt-input">プロンプト *</label>
-                <textarea id="prompt-input" class="form-textarea"
-                    placeholder="プロンプトの内容を入力してください..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label" for="memo-input">メモ</label>
-                <input type="text" id="memo-input" class="form-input" placeholder="メモ（任意）">
-            </div>
-
-            <div class="form-group">
-                <label class="form-label" for="tags-input">タグ</label>
-                <input type="text" id="tags-input" class="form-input" placeholder="タグ1,タグ2,タグ3">
-            </div>
-
-            <div class="editor-actions">
-                <button id="cancel-btn" class="btn btn-secondary">キャンセル</button>
-                <button id="delete-btn" class="btn btn-danger" style="display: none;">削除</button>
-                <button id="save-btn" class="btn btn-primary">保存</button>
+        <div class="form-group">
+            <label class="form-label" for="githubToken">GitHub Personal Access Token</label>
+            <input type="password" id="githubToken" class="form-input" placeholder="ghp_xxxxxxxxxxxxxxxx">
+            <div class="help-text">
+                将来のGitHub API連携用設定です。<br>
+                プロンプト管理はGitHub Pagesで行ってください。
             </div>
         </div>
-    </div>
 
-    <!-- 設定ビュー -->
-    <div id="settings-view" class="editor-view" style="display: none;">
-        <div class="editor-form">
-            <div class="form-group">
-                <label class="form-label" for="githubTokenInput">GitHub Personal Access Token</label>
-                <input type="password" id="githubTokenInput" class="form-input" placeholder="将来のGitHub API連携用（準備中）">
-            </div>
-            <div class="editor-actions">
-                <button id="cancelSettingsButton" class="btn btn-secondary">キャンセル</button>
-                <button id="saveSettingsButton" class="btn btn-primary">保存</button>
-            </div>
-        </div>
+        <button id="saveToken" class="btn">保存</button>
+
+        <div id="status" class="status" style="display: none;"></div>
     </div>
 
     <script src="popup.js"></script>
