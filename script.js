@@ -153,32 +153,41 @@ async function loadPrompts() {
     try {
         console.log('📊 プロンプトデータ読み込み開始');
         
-        // Google Sheets連携が有効な場合は優先
+        // 1. 最優先: prompts.jsonファイルから読み込み（v7.0.0対応）
+        console.log('🔄 prompts.jsonから読み込み中...');
+        try {
+            const response = await fetch('./prompts.json');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.prompts && Array.isArray(data.prompts)) {
+                    prompts = data.prompts;
+                    console.log('✅ prompts.json読み込み成功:', prompts.length, '個のプロンプト');
+                    console.log('✅ 最初のプロンプト:', prompts[0]?.title);
+                    updateAllTags();
+                    return;
+                }
+            }
+        } catch (jsonError) {
+            console.warn('⚠️ prompts.json読み込み失敗:', jsonError);
+        }
+        
+        // 2. フォールバック: Google Sheets連携
         if (syncSettings.enabled && syncSettings.scriptUrl && sheetsConnector) {
             console.log('🔄 Google Sheetsからデータ読み込み中...');
             try {
                 const sheetsData = await sheetsConnector.getPrompts();
-                // Google Sheetsからデータを取得した場合は、サンプルデータは作らない
                 prompts = sheetsData || [];
                 console.log('✅ Google Sheetsデータ読み込み:', prompts.length, '個のプロンプト');
-                
-                // デバッグ用：データの詳細を確認
-                console.log('Google Sheetsデータの詳細:', prompts.slice(0, 3));
-                
                 updateAllTags();
                 return;
             } catch (sheetsError) {
                 console.warn('⚠️ Google Sheets読み込み失敗:', sheetsError);
-                prompts = [];
-                updateAllTags();
-                return;
             }
         }
 
-        // Google Sheets連携が無効な場合のみローカルストレージを使用
+        // 3. フォールバック: ローカルストレージ
         console.log('📁 ローカルストレージから読み込み');
         const savedData = localStorage.getItem('promptsData');
-
         if (savedData) {
             const data = JSON.parse(savedData);
             prompts = data.prompts || [];
@@ -188,7 +197,6 @@ async function loadPrompts() {
             console.log('📁 データなし、空の配列で初期化');
         }
 
-        // タグリストを更新
         updateAllTags();
         
     } catch (error) {
