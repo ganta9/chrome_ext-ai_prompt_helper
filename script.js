@@ -13,14 +13,14 @@ let currentFilter = 'all';
 let currentEditId = null;
 let searchQuery = '';
 
-// Google Sheets連携
-let sheetsConnector = null;
-let syncManager = null;
-let syncSettings = {
+// GitHub API 連携
+let githubConnector = null;
+let githubSettings = {
     enabled: true,
-    scriptUrl: 'https://script.google.com/macros/s/AKfycbwIAoo9vuoqXdx6dNndFKMJqRZTGbDGF3r/exec',
-    autoSyncEnabled: false,
-    // autoSyncInterval removed - manual sync only
+    owner: 'ganta9',
+    repo: 'chrome_ext-ai_prompt_helper',
+    branch: 'main',
+    filePath: 'prompts.json',
     lastSyncTime: null
 };
 
@@ -64,11 +64,9 @@ async function initializeApp() {
         loadSyncSettings();
         console.log('✅ ステップ1-1完了: 同期設定読み込み');
 
-        // Google Sheets連携初期化
-        if (syncSettings.enabled && syncSettings.scriptUrl) {
-            initializeSheetsConnection();
-            console.log('✅ ステップ1-2完了: Google Sheets連携初期化');
-        }
+        // GitHub API連携初期化
+        await initializeGitHubConnection();
+        console.log('✅ ステップ1-2完了: GitHub API連携初期化');
 
         console.log('🔄 ステップ2: データ読み込み開始');
 
@@ -171,19 +169,7 @@ async function loadPrompts() {
             console.warn('⚠️ prompts.json読み込み失敗:', jsonError);
         }
         
-        // 2. フォールバック: Google Sheets連携
-        if (syncSettings.enabled && syncSettings.scriptUrl && sheetsConnector) {
-            console.log('🔄 Google Sheetsからデータ読み込み中...');
-            try {
-                const sheetsData = await sheetsConnector.getPrompts();
-                prompts = sheetsData || [];
-                console.log('✅ Google Sheetsデータ読み込み:', prompts.length, '個のプロンプト');
-                updateAllTags();
-                return;
-            } catch (sheetsError) {
-                console.warn('⚠️ Google Sheets読み込み失敗:', sheetsError);
-            }
-        }
+        // 2. フォールバック: 既にprompts.jsonから読み込み済みのためスキップ
 
         // 3. フォールバック: ローカルストレージ
         console.log('📁 ローカルストレージから読み込み');
@@ -1070,410 +1056,251 @@ function confirmDelete() {
     // 実際の削除処理は showDeleteModal で設定される
 }
 
-// ========================================================================== 
-// Google Sheets連携クラス
-// ========================================================================== 
+// ==========================================================================
+// GitHub API連携クラス
+// ==========================================================================
 
-class SheetsConnector {
-    constructor(scriptUrl) {
-        this.scriptUrl = scriptUrl;
-        this.requestQueue = [];
-        this.isProcessing = false;
+class GitHubConnector {
+    constructor(owner, repo, branch = 'main') {
+        this.owner = owner;
+        this.repo = repo;
+        this.branch = branch;
+        this.filePath = 'prompts.json';
+        this.apiBase = 'https://api.github.com';
+        this.token = null;
+        this.debounceTimer = null;
     }
 
-    async getPrompts() {
-        console.log('📥 Google Sheets からプロンプト取得開始');
-        const response = await this.makeRequest('getPrompts');
-        // レスポンスからデータ配列を抽出
-        return response.data || [];
+    async initialize() {
+        // トークンを取得（Chrome拡張機能またはLocalStorage）
+        try {
+            // Chrome拡張機能環境
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                const result = await chrome.storage.local.get(['githubToken']);
+                this.token = result.githubToken;
+            } else {
+                // GitHub Pages環境（ブラウザ）
+                this.token = localStorage.getItem('githubToken');
+            }
+
+            if (!this.token) {
+                console.warn('GitHub Personal Access Token が設定されていません');
+                return { success: false, error: 'トークン未設定' };
+            }
+            console.log('✅ GitHub API 初期化完了');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ GitHub API 初期化エラー:', error);
+            return { success: false, error: error.message };
+        }
     }
 
-    async addPrompt(data) {
-        console.log('📤 Google Sheets へプロンプト追加:', data.title);
-        return await this.makeRequest('addPrompt', data);
-    }
-
-    async updatePrompt(id, data) {
-        console.log('📤 Google Sheets でプロンプト更新:', id, data.title);
-        return await this.makeRequest('updatePrompt', { id, ...data });
-    }
-
-    async deletePrompt(id) {
-        console.log('📤 Google Sheets でプロンプト削除:', id);
-        return await this.makeRequest('deletePrompt', { id });
-    }
-
-    makeRequest(action, params = {}) {
-        return new Promise((resolve, reject) => {
-            const callbackName = 'callback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            
-            const timeout = setTimeout(() => {
-                reject(new Error('リクエストタイムアウト'));
-                // コールバック関数をクリアアップ
-                delete window[callbackName];
-            }, 30000); // 30秒タイムアウト
-
-            window[callbackName] = (response) => {
-                clearTimeout(timeout);
-                delete window[callbackName];
-
-                try {
-                    if (response.success) {
-                        console.log('✅ Google Sheets API 成功:', action);
-                        resolve(response);
-                    } else {
-                        console.error('❌ Google Sheets API エラー:', response.error);
-                        reject(new Error(response.error));
+    async getCurrentFileSha() {
+        try {
+            const response = await fetch(
+                `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.filePath}?ref=${this.branch}`,
+                {
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
                     }
-                } catch (error) {
-                    console.error('❌ レスポンス処理エラー:', error);
-                    reject(error);
                 }
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.sha;
+            } else if (response.status === 404) {
+                // ファイルが存在しない場合は新規作成
+                return null;
+            } else {
+                throw new Error(`GitHub API エラー: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('❌ GitHub SHA取得エラー:', error);
+            throw error;
+        }
+    }
+
+    async updatePromptsFile(promptsData) {
+        try {
+            if (!this.token) {
+                await this.initialize();
+            }
+
+            const sha = await this.getCurrentFileSha();
+            const content = btoa(JSON.stringify(promptsData, null, 2)); // Base64エンコード
+
+            const requestBody = {
+                message: '🤖 Auto-save: プロンプトデータ更新',
+                content: content,
+                branch: this.branch
             };
 
-            // URLパラメータを構築
-            const urlParams = new URLSearchParams({
-                action,
-                callback: callbackName,
-                ...params
-            });
+            if (sha) {
+                requestBody.sha = sha;
+            }
 
-            const requestUrl = `${this.scriptUrl}?${urlParams.toString()}`;
-            console.log('🌐 リクエストURL:', requestUrl.substring(0, 150) + '...');
-
-            // JSONP リクエストを作成
-            const script = document.createElement('script');
-            script.src = requestUrl;
-            script.onerror = () => {
-                clearTimeout(timeout);
-                delete window[callbackName];
-                reject(new Error('Google Apps Script への接続に失敗しました'));
-            };
-
-            document.head.appendChild(script);
-
-            // スクリプトタグを5秒後に削除
-            setTimeout(() => {
-                if (script.parentNode) {
-                    script.parentNode.removeChild(script);
+            const response = await fetch(
+                `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.filePath}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
                 }
-            }, 5000);
-        });
+            );
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ GitHub API 保存成功:', result.commit.sha);
+                return { success: true, sha: result.commit.sha };
+            } else {
+                const error = await response.json();
+                throw new Error(`GitHub API エラー: ${error.message}`);
+            }
+
+        } catch (error) {
+            console.error('❌ GitHub API 保存エラー:', error);
+            throw error;
+        }
+    }
+
+    // Debounce処理付きの自動保存
+    async autoSave(promptsData) {
+        // 連続編集時のAPI呼び出し最小化
+        clearTimeout(this.debounceTimer);
+
+        this.debounceTimer = setTimeout(async () => {
+            try {
+                await this.updatePromptsFile(promptsData);
+                showNotification('✅ 自動保存完了', 'success');
+                githubSettings.lastSyncTime = new Date().toISOString();
+            } catch (error) {
+                console.error('自動保存エラー:', error);
+                showNotification(`⚠️ 自動保存失敗: ${error.message}`, 'error');
+            }
+        }, 1000); // 1秒間編集なしで保存実行
     }
 
     async testConnection() {
         try {
-            const result = await this.getPrompts();
-            console.log('✅ Google Sheets 接続テスト成功');
-            return { success: true, message: '接続テスト成功' };
+            const response = await fetch(
+                `${this.apiBase}/repos/${this.owner}/${this.repo}`,
+                {
+                    headers: {
+                        'Authorization': `token ${this.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                }
+            );
+
+            if (response.ok) {
+                console.log('✅ GitHub API 接続テスト成功');
+                return { success: true, message: 'GitHub接続成功' };
+            } else {
+                throw new Error(`GitHub API エラー: ${response.status}`);
+            }
         } catch (error) {
-            console.error('❌ Google Sheets 接続テスト失敗:', error);
+            console.error('❌ GitHub API 接続テスト失敗:', error);
             return { success: false, error: error.message };
         }
     }
 }
 
-class SyncManager {
-    constructor(sheetsConnector) {
-        this.sheets = sheetsConnector;
-        this.isProcessing = false;
-        // autoSyncTimer removed
+// ==========================================================================
+// GitHub API管理関数
+// ==========================================================================
+
+async function initializeGitHubConnection() {
+    try {
+        githubConnector = new GitHubConnector(
+            githubSettings.owner,
+            githubSettings.repo,
+            githubSettings.branch
+        );
+
+        const result = await githubConnector.initialize();
+        if (result.success) {
+            console.log('✅ GitHub API連携初期化完了');
+        } else {
+            console.warn('⚠️ GitHub API初期化警告:', result.error);
+        }
+        return result;
+    } catch (error) {
+        console.error('❌ GitHub API連携初期化エラー:', error);
+        return { success: false, error: error.message };
     }
+}
 
-    async syncToSheets() {
-        if (this.isProcessing) {
-            console.log('⏳ 同期処理中のため、リクエストをスキップ');
-            return { success: false, message: '同期処理中です' };
-        }
-
-        this.isProcessing = true;
-        console.log('📤 ローカル → Google Sheets 同期開始');
-
+// 自動保存機能を既存のプロンプト操作関数に統合
+async function autoSaveToGitHub() {
+    if (githubConnector) {
         try {
-            const results = { added: 0, updated: 0, errors: 0 };
-
-            for (const prompt of prompts) {
-                try {
-                    if (!prompt.syncId) {
-                        // 新規追加
-                        const result = await this.sheets.addPrompt({
-                            title: prompt.title,
-                            prompt: prompt.prompt,
-                            memo: prompt.memo || '',
-                            tags: prompt.tags ? prompt.tags.join(',') : ''
-                        });
-
-                        if (result.success && result.data) {
-                            prompt.syncId = result.data.id;
-                            results.added++;
-                        }
-                    } else {
-                        // 更新
-                        await this.sheets.updatePrompt(prompt.syncId, {
-                            title: prompt.title,
-                            prompt: prompt.prompt,
-                            memo: prompt.memo || '',
-                            tags: prompt.tags ? prompt.tags.join(',') : ''
-                        });
-                        results.updated++;
-                    }
-                } catch (error) {
-                    console.error('プロンプト同期エラー:', prompt.title, error);
-                    results.errors++;
-                }
-            }
-
-            // ローカルに保存
-            await savePrompts();
-            syncSettings.lastSyncTime = new Date().toISOString();
-            saveSyncSettings();
-
-            console.log('✅ ローカル → Google Sheets 同期完了:', results);
-            return { success: true, results };
-
-        } catch (error) {
-            console.error('❌ 同期処理エラー:', error);
-            return { success: false, error: error.message };
-        } finally {
-            this.isProcessing = false;
-        }
-    }
-
-    async syncFromSheets() {
-        if (this.isProcessing) {
-            console.log('⏳ 同期処理中のため、リクエストをスキップ');
-            return { success: false, message: '同期処理中です' };
-        }
-
-        this.isProcessing = true;
-        console.log('📥 Google Sheets → ローカル 同期開始');
-
-        try {
-            const response = await this.sheets.getPrompts();
-
-            if (!response.success) {
-                throw new Error(response.error);
-            }
-
-            const sheetsPrompts = response.data || [];
-            const results = { added: 0, updated: 0, errors: 0 };
-
-            // Google Sheets のプロンプトを処理
-            for (const sheetsPrompt of sheetsPrompts) {
-                try {
-                    const existingPrompt = prompts.find(p => p.syncId === sheetsPrompt.id);
-
-                    if (existingPrompt) {
-                        // 更新日時で比較
-                        const localUpdate = new Date(existingPrompt.updatedAt);
-                        const sheetsUpdate = new Date(sheetsPrompt.updated_at);
-
-                        if (sheetsUpdate > localUpdate) {
-                            // Google Sheetsの方が新しい
-                            existingPrompt.title = sheetsPrompt.title;
-                            existingPrompt.prompt = sheetsPrompt.prompt;
-                            existingPrompt.memo = sheetsPrompt.memo || '';
-                            existingPrompt.tags = sheetsPrompt.tags ? sheetsPrompt.tags.split(',').map(t => t.trim()).filter(t => t) : [];
-                            existingPrompt.updatedAt = sheetsPrompt.updated_at;
-                            results.updated++;
-                        }
-                    } else {
-                        // 新規プロンプト
-                        const newPrompt = {
-                            id: generateId(),
-                            syncId: sheetsPrompt.id,
-                            title: sheetsPrompt.title,
-                            prompt: sheetsPrompt.prompt,
-                            memo: sheetsPrompt.memo || '',
-                            tags: sheetsPrompt.tags ? sheetsPrompt.tags.split(',').map(t => t.trim()).filter(t => t) : [],
-                            createdAt: sheetsPrompt.created_at,
-                            updatedAt: sheetsPrompt.updated_at
-                        };
-
-                        prompts.unshift(newPrompt);
-                        results.added++;
-                    }
-                } catch (error) {
-                    console.error('プロンプト同期エラー:', sheetsPrompt.title, error);
-                    results.errors++;
-                }
-            }
-
-            // UI更新
-            updateAllTags();
-            updateTagList();
-            renderPrompts();
-            updateCounts();
-
-            // ローカルに保存
-            await savePrompts();
-            syncSettings.lastSyncTime = new Date().toISOString();
-            saveSyncSettings();
-
-            console.log('✅ Google Sheets → ローカル 同期完了:', results);
-            return { success: true, results };
-
-        } catch (error) {
-            console.error('❌ 同期処理エラー:', error);
-            return { success: false, error: error.message };
-        } finally {
-            this.isProcessing = false;
-        }
-    }
-
-    async fullSync() {
-        if (this.isProcessing) {
-            console.log('⏳ 同期処理中のため、リクエストをスキップ');
-            return { success: false, message: '同期処理中です' };
-        }
-
-        console.log('🔄 双方向同期開始');
-
-        try {
-            // まずGoogle Sheetsから最新データを取得
-            const fromSheetsResult = await this.syncFromSheets();
-
-            if (!fromSheetsResult.success) {
-                return fromSheetsResult;
-            }
-
-            // ローカルの変更をGoogle Sheetsに送信
-            const toSheetsResult = await this.syncToSheets();
-
-            const combinedResults = {
-                success: toSheetsResult.success,
-                fromSheets: fromSheetsResult.results,
-                toSheets: toSheetsResult.success ? toSheetsResult.results : null,
-                error: toSheetsResult.error
+            const data = {
+                prompts: prompts
             };
-
-            console.log('✅ 双方向同期完了:', combinedResults);
-            return combinedResults;
-
+            await githubConnector.autoSave(data);
         } catch (error) {
-            console.error('❌ 双方向同期エラー:', error);
-            return { success: false, error: error.message };
-        } 
-    }
-
-    // 自動同期機能は削除されました
-    // 必要な時のみ手動で同期を実行してください
-}
-
-// ========================================================================== 
-// Google Sheets連携管理関数
-// ========================================================================== 
-
-function loadSyncSettings() {
-    try {
-        const saved = localStorage.getItem('syncSettings');
-        if (saved) {
-            const settings = JSON.parse(saved);
-            syncSettings = { ...syncSettings, ...settings };
-            console.log('✅ 同期設定読み込み完了:', syncSettings);
+            console.warn('自動保存をスキップ:', error.message);
         }
-    } catch (error) {
-        console.error('同期設定読み込みエラー:', error);
     }
 }
 
-function saveSyncSettings() {
+
+// ==========================================================================
+// 自動保存機能統合（既存関数の修正）
+// ==========================================================================
+
+// addPrompt関数を修正してGitHub自動保存を追加
+async function addPromptWithAutoSave(data) {
     try {
-        localStorage.setItem('syncSettings', JSON.stringify(syncSettings));
-        console.log('✅ 同期設定保存完了');
+        const result = await addPrompt(data);
+        await autoSaveToGitHub();
+        return result;
     } catch (error) {
-        console.error('同期設定保存エラー:', error);
+        console.error('プロンプト追加エラー:', error);
+        throw error;
     }
 }
 
-function initializeSheetsConnection() {
-    if (!syncSettings.scriptUrl) {
-        console.log('Google Apps Script URLが未設定のため、連携を初期化しません');
-        return;
-    }
-
+// updatePrompt関数を修正してGitHub自動保存を追加
+async function updatePromptWithAutoSave(id, data) {
     try {
-        sheetsConnector = new SheetsConnector(syncSettings.scriptUrl);
-        syncManager = new SyncManager(sheetsConnector);
-
-        console.log('✅ Google Sheets連携初期化完了');
-
-        // 自動同期は無効化されています
-
+        const result = await updatePrompt(id, data);
+        await autoSaveToGitHub();
+        return result;
     } catch (error) {
-        console.error('❌ Google Sheets連携初期化エラー:', error);
+        console.error('プロンプト更新エラー:', error);
+        throw error;
     }
 }
 
-// 同期関連のユーティリティ関数
-function enableGoogleSheetsSync(scriptUrl) {
-    syncSettings.enabled = true;
-    syncSettings.scriptUrl = scriptUrl;
-    saveSyncSettings();
-
-    initializeSheetsConnection();
-    showNotification('Google Sheets連携を有効にしました', 'success');
-}
-
-function disableGoogleSheetsSync() {
-    syncSettings.enabled = false;
-    saveSyncSettings();
-
-    if (syncManager) {
-        syncManager.stopAutoSync();
-    }
-
-    sheetsConnector = null;
-    syncManager = null;
-
-    showNotification('Google Sheets連携を無効にしました', 'info');
-}
-
-async function testGoogleSheetsConnection() {
-    if (!sheetsConnector) {
-        showNotification('Google Sheets連携が設定されていません', 'error');
-        return { success: false, error: '連携未設定' };
-    }
-
-    showNotification('接続テスト中...', 'info');
-    const result = await sheetsConnector.testConnection();
-
-    if (result.success) {
-        showNotification('Google Sheetsとの接続に成功しました', 'success');
-    } else {
-        showNotification(`接続テストに失敗: ${result.error}`, 'error');
-    }
-
-    return result;
-}
-
-async function syncNowManual() {
-    if (!syncManager) {
-        showNotification('Google Sheets連携が設定されていません', 'error');
-        return;
-    }
-
-    showNotification('同期中...', 'info');
-    const result = await syncManager.fullSync();
-
-    if (result.success) {
-        const message = `同期完了: 追加${result.fromSheets?.added || 0}件, 更新${result.fromSheets?.updated || 0}件`;
-        showNotification(message, 'success');
-    } else {
-        showNotification(`同期エラー: ${result.error}`, 'error');
+// deletePrompt関数を修正してGitHub自動保存を追加
+async function deletePromptWithAutoSave(id) {
+    try {
+        const result = await deletePrompt(id);
+        await autoSaveToGitHub();
+        return result;
+    } catch (error) {
+        console.error('プロンプト削除エラー:', error);
+        throw error;
     }
 }
 
-// ========================================================================== 
-// Window API エクスポート
-// ========================================================================== 
+// ==========================================================================
+// Window API エクスポート（GitHub版）
+// ==========================================================================
 
 if (typeof window !== 'undefined') {
     window.promptHelper = {
         prompts,
-        addPrompt,
-        updatePrompt,
-        deletePrompt,
+        addPrompt: addPromptWithAutoSave,
+        updatePrompt: updatePromptWithAutoSave,
+        deletePrompt: deletePromptWithAutoSave,
         loadPrompts,
         savePrompts,
         downloadJSON,
@@ -1481,90 +1308,185 @@ if (typeof window !== 'undefined') {
         deleteFromDetail,
         selectPrompt,
         closeDetailModal,
-        // Google Sheets連携
-        syncSettings,
-        enableGoogleSheetsSync,
-        disableGoogleSheetsSync,
-        testGoogleSheetsConnection,
-        syncNowManual,
-        sheetsConnector,
-        syncManager
+        // GitHub API連携
+        githubSettings,
+        githubConnector,
+        autoSaveToGitHub,
+        initializeGitHubConnection
     };
 }
 
-// ========================================================================== 
+// ==========================================================================
 // デバッグ・管理用関数
-// ========================================================================== 
+// ==========================================================================
 
-// デバッグ用関数
 function debugInfo() {
     return {
         promptsCount: prompts.length,
         prompts: prompts,
-        syncSettings: syncSettings,
+        githubSettings: githubSettings,
         localStorage: localStorage.getItem('promptsData')
     };
 }
 
-// ローカルストレージをクリアする関数
 function clearLocalStorage() {
     localStorage.removeItem('promptsData');
     console.log('✅ ローカルストレージのプロンプトデータを削除しました');
     return 'ローカルストレージをクリアしました';
 }
 
-// Google Sheetsから手動でデータを再読み込みする関数
-async function forceReloadFromSheets() {
-    if (sheetsConnector) {
-        try {
-            prompts = await sheetsConnector.getPrompts() || [];
-            console.log('✅ Google Sheetsから再読み込み:', prompts.length, '個');
-            console.log('データの詳細:', prompts);
-            updateTagList();
-            renderPrompts();
-            updateCounts();
-            return `Google Sheetsから${prompts.length}個のプロンプトを読み込みました`;
-        } catch (error) {
-            console.error('Google Sheets再読み込みエラー:', error);
-            return 'Google Sheets再読み込みに失敗しました: ' + error.message;
-        }
+// GitHub API接続テスト関数
+async function testGitHubConnection() {
+    if (!githubConnector) {
+        showNotification('GitHub API連携が設定されていません', 'error');
+        return { success: false, error: '連携未設定' };
+    }
+
+    showNotification('GitHub接続テスト中...', 'info');
+    const result = await githubConnector.testConnection();
+
+    if (result.success) {
+        showNotification('GitHubとの接続に成功しました', 'success');
     } else {
-        return 'Google Sheets連携が初期化されていません';
+        showNotification(`接続テストに失敗: ${result.error}`, 'error');
+    }
+
+    return result;
+}
+
+// 手動GitHub同期実行
+async function manualSaveToGitHub() {
+    if (!githubConnector) {
+        showNotification('GitHub API連携が設定されていません', 'error');
+        return;
+    }
+
+    showNotification('GitHub保存中...', 'info');
+    try {
+        const data = { prompts: prompts };
+        await githubConnector.updatePromptsFile(data);
+        showNotification('GitHubへの保存が完了しました', 'success');
+    } catch (error) {
+        showNotification(`GitHub保存エラー: ${error.message}`, 'error');
     }
 }
 
-// Google Sheetsの手動データを修正する関数
-async function fixGoogleSheetsData() {
-    if (!syncSettings.scriptUrl) {
-        console.error('Google Apps Script URLが設定されていません');
-        return 'URLが設定されていません';
+// ==========================================================================
+// GitHub設定モーダル関連
+// ==========================================================================
+
+function showGitHubSettingsModal() {
+    const modal = document.getElementById('github-settings-modal');
+    const tokenInput = document.getElementById('github-token');
+
+    // 既存のトークンを読み込み
+    const existingToken = localStorage.getItem('githubToken');
+    if (existingToken) {
+        tokenInput.value = existingToken;
     }
-    
+
+    modal.style.display = 'flex';
+}
+
+function hideGitHubSettingsModal() {
+    document.getElementById('github-settings-modal').style.display = 'none';
+    clearGitHubStatus();
+}
+
+function clearGitHubStatus() {
+    const statusElement = document.getElementById('github-status');
+    statusElement.textContent = '';
+    statusElement.className = 'status-message';
+}
+
+function showGitHubStatus(message, type) {
+    const statusElement = document.getElementById('github-status');
+    statusElement.textContent = message;
+    statusElement.className = `status-message ${type}`;
+}
+
+async function saveGitHubToken() {
+    const token = document.getElementById('github-token').value.trim();
+
+    if (!token) {
+        showGitHubStatus('トークンを入力してください', 'error');
+        return;
+    }
+
+    if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+        showGitHubStatus('正しいGitHub Personal Access Token形式ではありません', 'error');
+        return;
+    }
+
     try {
-        const url = `${syncSettings.scriptUrl}?action=fixManualData&callback=fixDataCallback`;
-        
-        return new Promise((resolve, reject) => {
-            window.fixDataCallback = function(response) {
-                console.log('fixManualData結果:', response);
-                if (response.success) {
-                    resolve(`手動データを修正しました: ${response.message}`);
-                } else {
-                    reject(new Error(response.error || '不明なエラー'));
-                }
-                delete window.fixDataCallback;
-            };
-            
-            const script = document.createElement('script');
-            script.src = url;
-            script.onerror = () => {
-                reject(new Error('Google Apps Scriptの実行に失敗しました'));
-                delete window.fixDataCallback;
-            };
-            document.head.appendChild(script);
-            document.head.removeChild(script);
-        });
+        // LocalStorageに保存
+        localStorage.setItem('githubToken', token);
+
+        // GitHub API連携を再初期化
+        await initializeGitHubConnection();
+
+        showGitHubStatus('GitHub Tokenが保存されました', 'success');
+        showNotification('GitHub設定が保存されました', 'success');
+
+        setTimeout(() => {
+            hideGitHubSettingsModal();
+        }, 1500);
+
     } catch (error) {
-        console.error('fixGoogleSheetsData エラー:', error);
-        return 'エラー: ' + error.message;
+        console.error('GitHub Token保存エラー:', error);
+        showGitHubStatus('保存に失敗しました', 'error');
     }
 }
+
+async function testGitHubConnectionFromModal() {
+    const token = document.getElementById('github-token').value.trim();
+
+    if (!token) {
+        showGitHubStatus('まずトークンを入力してください', 'error');
+        return;
+    }
+
+    showGitHubStatus('接続テスト中...', 'info');
+
+    try {
+        // 一時的にトークンを設定してテスト
+        const tempConnector = new GitHubConnector(
+            githubSettings.owner,
+            githubSettings.repo,
+            githubSettings.branch
+        );
+        tempConnector.token = token;
+
+        const result = await tempConnector.testConnection();
+
+        if (result.success) {
+            showGitHubStatus('✅ GitHub接続成功！', 'success');
+        } else {
+            showGitHubStatus(`❌ 接続失敗: ${result.error}`, 'error');
+        }
+
+    } catch (error) {
+        showGitHubStatus(`❌ 接続エラー: ${error.message}`, 'error');
+    }
+}
+
+// イベントリスナーの設定
+document.addEventListener('DOMContentLoaded', () => {
+    // GitHub設定ボタン
+    document.getElementById('github-settings-btn').addEventListener('click', showGitHubSettingsModal);
+
+    // GitHub設定モーダル
+    document.getElementById('github-settings-close').addEventListener('click', hideGitHubSettingsModal);
+    document.getElementById('github-cancel-btn').addEventListener('click', hideGitHubSettingsModal);
+    document.getElementById('github-save-btn').addEventListener('click', saveGitHubToken);
+    document.getElementById('test-github-connection').addEventListener('click', testGitHubConnectionFromModal);
+
+    // GitHub設定モーダルの背景クリックで閉じる
+    document.getElementById('github-settings-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+            hideGitHubSettingsModal();
+        }
+    });
+});
+
+console.log('✅ AI Prompt Helper Editor v7.0.0 with GitHub API - 初期化完了');

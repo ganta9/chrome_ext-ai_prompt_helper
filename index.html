@@ -25,6 +25,9 @@
                 <button id="download-btn" class="btn btn-secondary">
                     <span>📥</span> JSONダウンロード
                 </button>
+                <button id="github-settings-btn" class="btn btn-secondary">
+                    <span>⚙️</span> GitHub設定
+                </button>
             </div>
         </div>
     </header>
@@ -170,6 +173,50 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" id="delete-cancel">キャンセル</button>
                 <button type="button" class="btn btn-danger" id="delete-confirm">削除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GitHub設定モーダル -->
+    <div class="modal-overlay" id="github-settings-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>GitHub API設定</h3>
+                <button class="modal-close" id="github-settings-close">×</button>
+            </div>
+
+            <div class="modal-content">
+                <div class="form-group">
+                    <label for="github-token">GitHub Personal Access Token <span class="required">*</span></label>
+                    <input type="password" id="github-token" class="form-input"
+                           placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                    <small class="form-help">
+                        GitHub Personal Access Token を入力してください。<br>
+                        <strong>必要な権限:</strong> Contents: Write（リポジトリの内容を編集）
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>リポジトリ情報</label>
+                    <div class="repo-info">
+                        <div><strong>Owner:</strong> ganta9</div>
+                        <div><strong>Repository:</strong> chrome_ext-ai_prompt_helper</div>
+                        <div><strong>Branch:</strong> main</div>
+                        <div><strong>File:</strong> prompts.json</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button type="button" id="test-github-connection" class="btn btn-secondary">
+                        接続テスト
+                    </button>
+                    <div id="github-status" class="status-message"></div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="github-cancel-btn">キャンセル</button>
+                    <button type="button" class="btn btn-primary" id="github-save-btn">保存</button>
+                </div>
             </div>
         </div>
     </div>
