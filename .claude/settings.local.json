@@ -29,7 +29,11 @@
       "mcp__serena__insert_after_symbol",
       "mcp__serena__find_symbol",
       "mcp__sequential-thinking__sequentialthinking",
-      "mcp__serena__create_text_file"
+      "mcp__serena__create_text_file",
+      "WebFetch(domain:ganta9.github.io)",
+      "mcp__serena__think_about_collected_information",
+      "mcp__serena__write_memory",
+      "Bash(python3:*)"
     ],
     "deny": []
   }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Prompt Helper",
-  "version": "6.0.0",
+  "version": "7.0.0",
   "description": "AIサイト用プロンプト管理ツール",
   "permissions": [
     "activeTab",
@@ -34,20 +34,20 @@
         "*://x.ai/*",
         "*://www.genspark.ai/*"
       ],
-      "js": ["content.js"],
-      "css": ["styles.css"]
+      "js": ["src/content.js"],
+      "css": ["src/styles.css"]
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup.html",
     "default_area": {
       "width": 640,
       "height": 750
     }
   },
   "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }
