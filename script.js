@@ -60,9 +60,8 @@ async function initializeApp() {
         showLoading(true);
         console.log('🔄 ステップ1: 設定読み込み開始');
 
-        // 同期設定の読み込み
-        loadSyncSettings();
-        console.log('✅ ステップ1-1完了: 同期設定読み込み');
+        // GitHub設定の読み込み（LocalStorageから）
+        console.log('✅ ステップ1-1完了: GitHub設定確認');
 
         // GitHub API連携初期化
         await initializeGitHubConnection();
@@ -103,6 +102,7 @@ function setupEventListeners() {
     // ヘッダーアクション
     document.getElementById('add-prompt-btn').addEventListener('click', () => showAddModal());
     document.getElementById('download-btn').addEventListener('click', downloadJSON);
+    document.getElementById('github-settings-btn').addEventListener('click', showGitHubSettingsModal);
     document.getElementById('search-input').addEventListener('input', handleSearch);
     
     // サイドバー
@@ -141,6 +141,19 @@ function setupEventListeners() {
     
     // キーボードショートカット
     document.addEventListener('keydown', handleKeyboard);
+
+    // GitHub設定モーダル
+    document.getElementById('github-settings-close').addEventListener('click', hideGitHubSettingsModal);
+    document.getElementById('github-cancel-btn').addEventListener('click', hideGitHubSettingsModal);
+    document.getElementById('github-save-btn').addEventListener('click', saveGitHubToken);
+    document.getElementById('test-github-connection').addEventListener('click', testGitHubConnectionFromModal);
+
+    // GitHub設定モーダルの背景クリックで閉じる
+    document.getElementById('github-settings-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+            hideGitHubSettingsModal();
+        }
+    });
 }
 
 // ========================================================================== 
@@ -1470,23 +1483,6 @@ async function testGitHubConnectionFromModal() {
     }
 }
 
-// イベントリスナーの設定
-document.addEventListener('DOMContentLoaded', () => {
-    // GitHub設定ボタン
-    document.getElementById('github-settings-btn').addEventListener('click', showGitHubSettingsModal);
-
-    // GitHub設定モーダル
-    document.getElementById('github-settings-close').addEventListener('click', hideGitHubSettingsModal);
-    document.getElementById('github-cancel-btn').addEventListener('click', hideGitHubSettingsModal);
-    document.getElementById('github-save-btn').addEventListener('click', saveGitHubToken);
-    document.getElementById('test-github-connection').addEventListener('click', testGitHubConnectionFromModal);
-
-    // GitHub設定モーダルの背景クリックで閉じる
-    document.getElementById('github-settings-modal').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) {
-            hideGitHubSettingsModal();
-        }
-    });
-});
+// GitHub関連のイベントリスナーはsetupEventListeners関数内で設定
 
 console.log('✅ AI Prompt Helper Editor v7.0.0 with GitHub API - 初期化完了');
