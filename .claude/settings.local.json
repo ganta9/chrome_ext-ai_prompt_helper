@@ -33,7 +33,9 @@
       "WebFetch(domain:ganta9.github.io)",
       "mcp__serena__think_about_collected_information",
       "mcp__serena__write_memory",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_click"
     ],
     "deny": []
   }

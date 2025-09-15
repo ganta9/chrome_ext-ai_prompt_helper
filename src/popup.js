@@ -71,16 +71,49 @@ async function saveToken() {
   }
 }
 
+// GitHub Pages同期機能
+async function syncWithGitHubPages() {
+  const syncBtn = document.getElementById('syncGitHubPages');
+
+  try {
+    syncBtn.disabled = true;
+    syncBtn.textContent = '同期中...';
+
+    // Background Scriptにメッセージ送信
+    const response = await chrome.runtime.sendMessage({
+      action: 'syncGitHubToken'
+    });
+
+    if (response.success) {
+      showStatus(response.message, 'success');
+      console.log('GitHub Pages同期完了');
+    } else {
+      showStatus(`同期失敗: ${response.error}`, 'error');
+    }
+
+  } catch (error) {
+    console.error('GitHub Pages同期エラー:', error);
+    showStatus('同期に失敗しました', 'error');
+  } finally {
+    syncBtn.disabled = false;
+    syncBtn.textContent = '📤 GitHub Pagesと同期';
+  }
+}
+
 // ==========================================================================
 // イベントリスナー設定
 // ==========================================================================
 
 function setupEventListeners() {
   const saveBtn = document.getElementById('saveToken');
+  const syncBtn = document.getElementById('syncGitHubPages');
   const tokenInput = document.getElementById('githubToken');
 
   // 保存ボタンのクリックイベント
   saveBtn.addEventListener('click', saveToken);
+
+  // GitHub Pages同期ボタンのクリックイベント
+  syncBtn.addEventListener('click', syncWithGitHubPages);
 
   // Enterキーでの保存
   tokenInput.addEventListener('keypress', (e) => {

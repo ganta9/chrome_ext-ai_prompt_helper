@@ -126,6 +126,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // 非同期レスポンス
   }
 
+  if (request.action === 'syncGitHubToken') {
+    handleSyncGitHubToken(sendResponse);
+    return true; // 非同期レスポンス
+  }
+
   console.warn('Background: 未知のアクション:', request.action);
   sendResponse({ success: false, error: '未知のアクション' });
 });
@@ -218,6 +223,61 @@ async function handleGetPrompts(sendResponse) {
       success: false,
       error: error.message,
       data: DEFAULT_PROMPTS
+    });
+  }
+}
+
+// GitHub Token同期処理
+async function handleSyncGitHubToken(sendResponse) {
+  try {
+    // Chrome Storage からGitHub Tokenを取得
+    const result = await chrome.storage.local.get(['githubToken']);
+    const token = result.githubToken;
+
+    if (!token) {
+      sendResponse({
+        success: false,
+        error: 'GitHub Personal Access Token が設定されていません'
+      });
+      return;
+    }
+
+    // GitHub Pagesに GitHub Token を送信
+    const githubPagesTabUrl = 'https://ganta9.github.io/chrome_ext-ai_prompt_helper/';
+
+    // GitHub Pagesタブを探す
+    const tabs = await chrome.tabs.query({ url: githubPagesTabUrl + '*' });
+
+    if (tabs.length > 0) {
+      // GitHub Pagesタブが開いている場合は直接送信
+      await chrome.tabs.sendMessage(tabs[0].id, {
+        action: 'setGitHubToken',
+        token: token
+      });
+
+      console.log('Background: GitHub TokenをGitHub Pagesに送信完了');
+      sendResponse({
+        success: true,
+        message: 'GitHub TokenをGitHub Pagesに同期しました'
+      });
+    } else {
+      // GitHub Pagesタブが開いていない場合は新しいタブで開く
+      const newTab = await chrome.tabs.create({
+        url: githubPagesTabUrl + '?token=' + encodeURIComponent(token)
+      });
+
+      console.log('Background: GitHub Pagesを新しいタブで開き、Tokenを送信');
+      sendResponse({
+        success: true,
+        message: 'GitHub Pagesを開いてTokenを同期しました'
+      });
+    }
+
+  } catch (error) {
+    console.error('Background: GitHub Token同期エラー:', error);
+    sendResponse({
+      success: false,
+      error: error.message
     });
   }
 }

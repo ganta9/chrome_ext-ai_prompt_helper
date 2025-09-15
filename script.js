@@ -1485,4 +1485,44 @@ async function testGitHubConnectionFromModal() {
 
 // GitHub関連のイベントリスナーはsetupEventListeners関数内で設定
 
+// ==========================================================================
+// Chrome拡張機能からのToken受信
+// ==========================================================================
+
+// URLパラメータからTokenを取得
+function getTokenFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+        localStorage.setItem('githubToken', token);
+        console.log('URLパラメータからGitHub Tokenを設定しました');
+        // URLをクリーンアップ
+        window.history.replaceState({}, document.title, window.location.pathname);
+        showNotification('Chrome拡張機能からGitHub Tokenを受信しました', 'success');
+        return true;
+    }
+    return false;
+}
+
+// Chrome拡張機能からのメッセージ受信
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === 'setGitHubToken') {
+            localStorage.setItem('githubToken', request.token);
+            console.log('Chrome拡張機能からGitHub Tokenを受信しました');
+            showNotification('GitHub Tokenが同期されました', 'success');
+
+            // GitHub API連携を再初期化
+            initializeGitHubConnection();
+
+            sendResponse({ success: true });
+        }
+    });
+}
+
+// ページ読み込み時にURLパラメータをチェック
+document.addEventListener('DOMContentLoaded', () => {
+    getTokenFromURL();
+});
+
 console.log('✅ AI Prompt Helper Editor v7.0.0 with GitHub API - 初期化完了');
