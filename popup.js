@@ -297,44 +297,30 @@ async function updatePromptCacheStatus() {
     }
 }
 
-// JSONP形式でGoogle Apps Script APIを呼び出す
-function callGoogleAppsScript(scriptUrl, params) {
-    return new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-            reject(new Error('APIリクエストがタイムアウトしました'));
-        }, 30000); // 30秒タイムアウト
+// fetch()を使用してGoogle Apps Script APIを呼び出す
+async function callGoogleAppsScript(scriptUrl, params) {
+    try {
+        const queryParams = new URLSearchParams(params);
+        const url = `${scriptUrl}?${queryParams.toString()}`;
 
-        const callbackName = 'jsonpCallback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        console.log('Google Apps Script API呼び出し:', url);
 
-        window[callbackName] = function(data) {
-            clearTimeout(timeoutId);
-            delete window[callbackName];
-            document.head.removeChild(script);
-
-            try {
-                const result = typeof data === 'string' ? JSON.parse(data) : data;
-                resolve(result);
-            } catch (error) {
-                reject(new Error('レスポンスの解析に失敗しました: ' + error.message));
-            }
-        };
-
-        const queryParams = new URLSearchParams({
-            ...params,
-            callback: callbackName
+        const response = await fetch(url, {
+            method: 'GET',
+            mode: 'cors'
         });
 
-        const script = document.createElement('script');
-        script.src = `${scriptUrl}?${queryParams.toString()}`;
-        script.onerror = () => {
-            clearTimeout(timeoutId);
-            delete window[callbackName];
-            document.head.removeChild(script);
-            reject(new Error('Google Apps Scriptの呼び出しに失敗しました'));
-        };
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-        document.head.appendChild(script);
-    });
+        const data = await response.json();
+        return data;
+
+    } catch (error) {
+        console.error('Google Apps Script API エラー:', error);
+        throw error;
+    }
 }
 
 async function manualUpdate() {
