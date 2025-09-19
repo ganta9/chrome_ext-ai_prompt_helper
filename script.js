@@ -498,7 +498,7 @@ function addSuggestedTag(tag) {
     document.getElementById('tag-suggestions').innerHTML = '';
 }
 
-function handleSubmit(e) {
+async function handleSubmit(e) {
     e.preventDefault();
 
     const title = document.getElementById('prompt-title').value.trim();
@@ -520,10 +520,15 @@ function handleSubmit(e) {
         tags
     };
 
-    if (currentEditId) {
-        updatePrompt(currentEditId, promptData);
-    } else {
-        addPrompt(promptData);
+    try {
+        if (currentEditId) {
+            await updatePromptWithAutoSave(currentEditId, promptData);
+        } else {
+            await addPromptWithAutoSave(promptData);
+        }
+    } catch (error) {
+        console.error('プロンプト操作エラー:', error);
+        showNotification(`操作に失敗しました: ${error.message}`, 'error');
     }
 }
 
@@ -556,7 +561,7 @@ function handleKeyboard(e) {
 // CRUD操作
 // ========================================================================== 
 
-function addPrompt(data) {
+async function addPrompt(data) {
     const newPrompt = {
         id: generateId(),
         ...data,
@@ -566,7 +571,7 @@ function addPrompt(data) {
 
     prompts.unshift(newPrompt);
     updateAllTags();
-    savePrompts();
+    await savePrompts();
 
     closeModal();
     updateTagList();
@@ -574,43 +579,47 @@ function addPrompt(data) {
     updateCounts();
 
     showNotification('プロンプトを追加しました', 'success');
+    return newPrompt;
 }
 
-function updatePrompt(id, data) {
+async function updatePrompt(id, data) {
     const index = prompts.findIndex(p => p.id === id);
     if (index === -1) return;
-    
+
     prompts[index] = {
         ...prompts[index],
         ...data,
         updatedAt: getCurrentTimestamp()
     };
-    
+
     updateAllTags();
-    savePrompts();
-    
+    await savePrompts();
+
     closeModal();
     updateTagList();
     renderPrompts();
     updateCounts();
-    
+
     showNotification('プロンプトを更新しました', 'success');
+    return prompts[index];
 }
 
-function deletePrompt(id) {
+async function deletePrompt(id) {
     const index = prompts.findIndex(p => p.id === id);
     if (index === -1) return;
-    
+
+    const deletedPrompt = prompts[index];
     prompts.splice(index, 1);
     updateAllTags();
-    savePrompts();
-    
+    await savePrompts();
+
     closeDeleteModal();
     updateTagList();
     renderPrompts();
     updateCounts();
-    
+
     showNotification('プロンプトを削除しました', 'success');
+    return deletedPrompt;
 }
 
 // ========================================================================== 
