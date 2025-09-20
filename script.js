@@ -536,10 +536,10 @@ function renderPrompts() {
             <div class="prompt-card-header">
                 <h3 class="prompt-title">${escapeHtml(prompt.title)}</h3>
                 <div class="prompt-actions">
-                    <button class="action-btn" onclick="editPrompt(${prompt.id})" title="編集">
+                    <button class="action-btn" onclick="editPrompt('${prompt.id}')" title="編集">
                         ✏️
                     </button>
-                    <button class="action-btn" onclick="showDeleteModal(${prompt.id})" title="削除">
+                    <button class="action-btn" onclick="showDeleteModal('${prompt.id}')" title="削除">
                         🗑️
                     </button>
                 </div>
@@ -557,7 +557,7 @@ function renderPrompts() {
             
             <div class="prompt-footer">
                 <span>作成: ${formatDate(prompt.createdAt)}</span>
-                <button class="btn btn-primary" onclick="showDetailModal(${prompt.id})">
+                <button class="btn btn-primary" onclick="showDetailModal('${prompt.id}')">
                     選択
                 </button>
             </div>
