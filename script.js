@@ -1172,11 +1172,22 @@ class GitHubConnector {
             const sha = await this.getCurrentFileSha();
             console.log('🟪 [DEBUG] getCurrentFileSha() 完了、SHA:', sha || 'なし');
 
-            console.log('🟪 [DEBUG] JSON変換とBase64エンコード...');
+            console.log('🟪 [DEBUG] JSON変換とUTF-8対応Base64エンコード...');
             const jsonString = JSON.stringify(promptsData, null, 2);
             console.log('🟪 [DEBUG] JSON文字列長:', jsonString.length);
-            const content = btoa(jsonString); // Base64エンコード
-            console.log('🟪 [DEBUG] Base64エンコード完了、長さ:', content.length);
+
+            // UTF-8文字（日本語）対応のBase64エンコード
+            // 通常のbtoa()は Latin1 文字のみ対応のため、日本語でエラーが発生
+            // encodeURIComponent + unescape + btoa でUTF-8文字を正しく処理
+            console.log('🟪 [DEBUG] UTF-8エンコーディング実行中...');
+            let content;
+            try {
+                content = btoa(unescape(encodeURIComponent(jsonString)));
+                console.log('🟢 [SUCCESS] UTF-8対応Base64エンコード完了、長さ:', content.length);
+            } catch (encodeError) {
+                console.error('🔴 [ERROR] Base64エンコードエラー:', encodeError);
+                throw new Error(`文字エンコードエラー: ${encodeError.message}`);
+            }
 
             const requestBody = {
                 message: '🤖 Auto-save: プロンプトデータ更新',
