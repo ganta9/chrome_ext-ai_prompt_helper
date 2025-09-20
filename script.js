@@ -896,7 +896,13 @@ function showAddModal() {
 }
 
 function editPrompt(id) {
-    const prompt = prompts.find(p => p.id === id);
+    console.log('✏️ [EDIT] editPrompt() 開始 - ID:', id, 'ID型:', typeof id);
+    const prompt = prompts.find(p => {
+        const match = p.id == id || p.id === String(id) || String(p.id) === String(id);
+        console.log('✏️ [EDIT] ID比較:', p.id, '(', typeof p.id, ') vs', id, '(', typeof id, ') → match:', match);
+        return match;
+    });
+    console.log('✏️ [EDIT] 検索結果:', prompt ? `見つかった: ${prompt.title}` : '見つからない');
     if (!prompt) return;
     
     currentEditId = id;
