@@ -176,6 +176,11 @@ function setupEventListeners() {
     document.getElementById('detail-close').addEventListener('click', closeDetailModal);
     // 注意: detail-edit-btn, detail-delete-btn, detail-select-btnは
     // showDetailModal()内で動的にイベントハンドラーを設定
+
+    // v7.1.0 モーダル - プレビュー表示
+    document.getElementById('preview-close').addEventListener('click', closePreviewModal);
+    // 注意: preview-edit-btn, preview-delete-btnは
+    // showPreviewModal()内で動的にイベントハンドラーを設定
     
     // モーダル - 削除確認
     document.getElementById('delete-close').addEventListener('click', closeDeleteModal);
@@ -188,6 +193,9 @@ function setupEventListeners() {
     });
     document.getElementById('detail-modal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeDetailModal();
+    });
+    document.getElementById('preview-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closePreviewModal();
     });
     document.getElementById('delete-modal').addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeDeleteModal();
@@ -557,7 +565,7 @@ function renderPrompts() {
             
             <div class="prompt-footer">
                 <span>作成: ${formatDate(prompt.createdAt)}</span>
-                <button class="btn btn-primary" onclick="showDetailModal('${prompt.id}')">
+                <button class="btn btn-primary" onclick="selectAndPreview('${prompt.id}')">
                     選択
                 </button>
             </div>
@@ -700,6 +708,8 @@ function handleKeyboard(e) {
             closeModal();
         } else if (document.getElementById('detail-modal').style.display !== 'none') {
             closeDetailModal();
+        } else if (document.getElementById('preview-modal').style.display !== 'none') {
+            closePreviewModal();
         } else if (document.getElementById('delete-modal').style.display !== 'none') {
             closeDeleteModal();
         }
@@ -1206,7 +1216,114 @@ function selectPrompt(id) {
     showNotification('プロンプトをクリップボードにコピーしました', 'success');
 }
 
-// ========================================================================== 
+// ==========================================================================
+// v7.1.0 新機能: ワンクリック選択＋プレビュー
+// ==========================================================================
+
+// プロンプト選択と同時にプレビュー表示（新機能）
+function selectAndPreview(id) {
+    console.log('🎯 [NEW] selectAndPreview() 開始 - ID:', id);
+
+    // 1. 即座にプロンプト選択を実行
+    console.log('🎯 [NEW] 1. selectPrompt() 実行開始...');
+    selectPrompt(id);
+    console.log('🎯 [NEW] 1. selectPrompt() 実行完了');
+
+    // 2. 同時にプレビューモーダルを表示
+    console.log('🎯 [NEW] 2. showPreviewModal() 実行開始...');
+    showPreviewModal(id);
+    console.log('🎯 [NEW] 2. showPreviewModal() 実行完了');
+
+    console.log('🎯 [NEW] selectAndPreview() 完了');
+}
+
+// プレビューモーダル表示（マークダウン対応）
+function showPreviewModal(id) {
+    console.log('👁️ [PREVIEW] showPreviewModal() 開始 - ID:', id);
+
+    const prompt = prompts.find(p => p.id == id || p.id === String(id) || String(p.id) === String(id));
+    if (!prompt) {
+        console.error('👁️ [PREVIEW] プロンプトが見つかりません:', id);
+        return;
+    }
+
+    console.log('👁️ [PREVIEW] プロンプト取得成功:', prompt.title);
+
+    // タイトル設定
+    document.getElementById('preview-title').textContent = prompt.title;
+    console.log('👁️ [PREVIEW] タイトル設定完了');
+
+    // マークダウンレンダリング付きプロンプト表示
+    const previewPromptElement = document.getElementById('preview-prompt');
+    try {
+        // marked.jsを使用してマークダウンをHTMLに変換
+        if (typeof marked !== 'undefined') {
+            console.log('👁️ [PREVIEW] marked.js利用可能、マークダウンレンダリング実行');
+            previewPromptElement.innerHTML = marked.parse(prompt.prompt);
+            console.log('👁️ [PREVIEW] マークダウンレンダリング完了');
+        } else {
+            console.warn('👁️ [PREVIEW] marked.js未読み込み、プレーンテキスト表示');
+            previewPromptElement.textContent = prompt.prompt;
+        }
+    } catch (error) {
+        console.error('👁️ [PREVIEW] マークダウンレンダリングエラー:', error);
+        // フォールバック: プレーンテキスト表示
+        previewPromptElement.textContent = prompt.prompt;
+    }
+
+    // メモ表示
+    const memoSection = document.getElementById('preview-memo-section');
+    const memoContent = document.getElementById('preview-memo');
+    if (prompt.memo && prompt.memo.trim()) {
+        console.log('👁️ [PREVIEW] メモ表示');
+        memoContent.textContent = prompt.memo;
+        memoSection.style.display = 'block';
+    } else {
+        console.log('👁️ [PREVIEW] メモなし、セクション非表示');
+        memoSection.style.display = 'none';
+    }
+
+    // タグ表示
+    const tagsContainer = document.getElementById('preview-tags');
+    if (prompt.tags && prompt.tags.length > 0) {
+        console.log('👁️ [PREVIEW] タグ表示:', prompt.tags.length, '個');
+        tagsContainer.innerHTML = prompt.tags.map(tag =>
+            `<span class="tag">${escapeHtml(tag)}</span>`
+        ).join('');
+    } else {
+        console.log('👁️ [PREVIEW] タグなし');
+        tagsContainer.innerHTML = '<span class="text-muted">タグなし</span>';
+    }
+
+    // 編集・削除ボタンのイベント設定
+    document.getElementById('preview-edit-btn').onclick = () => {
+        console.log('👁️ [PREVIEW] 編集ボタンクリック');
+        closePreviewModal();
+        editPrompt(id);
+    };
+
+    document.getElementById('preview-delete-btn').onclick = () => {
+        console.log('👁️ [PREVIEW] 削除ボタンクリック');
+        closePreviewModal();
+        showDeleteModal(id);
+    };
+
+    // モーダル表示
+    document.getElementById('preview-modal').style.display = 'flex';
+    console.log('👁️ [PREVIEW] プレビューモーダル表示完了');
+}
+
+// プレビューモーダルを閉じる
+function closePreviewModal() {
+    console.log('👁️ [PREVIEW] closePreviewModal() 実行');
+    const previewModal = document.getElementById('preview-modal');
+    if (previewModal) {
+        previewModal.style.display = 'none';
+        console.log('👁️ [PREVIEW] プレビューモーダル非表示完了');
+    }
+}
+
+// ==========================================================================
 // ユーティリティ関数
 // ========================================================================== 
 
