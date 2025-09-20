@@ -36,7 +36,9 @@
       "Bash(python3:*)",
       "mcp__playwright__browser_navigate",
       "mcp__playwright__browser_click",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }
