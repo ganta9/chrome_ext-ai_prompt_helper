@@ -35,7 +35,8 @@
       "mcp__serena__write_memory",
       "Bash(python3:*)",
       "mcp__playwright__browser_navigate",
-      "mcp__playwright__browser_click"
+      "mcp__playwright__browser_click",
+      "Bash(git pull:*)"
     ],
     "deny": []
   }
