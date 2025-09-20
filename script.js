@@ -797,7 +797,11 @@ async function updatePrompt(id, data) {
         tags: data.tags
     });
 
-    const index = prompts.findIndex(p => p.id === id);
+    const index = prompts.findIndex(p => {
+        const match = p.id == id || p.id === String(id) || String(p.id) === String(id);
+        console.log('✏️ [UPDATE] ID比較:', p.id, '(', typeof p.id, ') vs', id, '(', typeof id, ') → match:', match);
+        return match;
+    });
     console.log('✏️ [UPDATE] プロンプト検索結果:', {
         targetId: id,
         foundIndex: index,
@@ -865,7 +869,11 @@ async function updatePrompt(id, data) {
 }
 
 async function deletePrompt(id) {
-    const index = prompts.findIndex(p => p.id === id);
+    console.log('🗑️ [DELETE] deletePrompt() 開始 - ID:', id, 'ID型:', typeof id);
+    const index = prompts.findIndex(p => {
+        const match = p.id == id || p.id === String(id) || String(p.id) === String(id);
+        return match;
+    });
     if (index === -1) return;
 
     const deletedPrompt = prompts[index];
@@ -922,7 +930,7 @@ function closeModal() {
 }
 
 function showDetailModal(id) {
-    const prompt = prompts.find(p => p.id === id);
+    const prompt = prompts.find(p => p.id == id || p.id === String(id) || String(p.id) === String(id));
     if (!prompt) return;
     
     document.getElementById('detail-title').textContent = prompt.title;
@@ -1000,7 +1008,7 @@ function closeDetailModal() {
 }
 
 function showDeleteModal(id) {
-    const prompt = prompts.find(p => p.id === id);
+    const prompt = prompts.find(p => p.id == id || p.id === String(id) || String(p.id) === String(id));
     if (!prompt) return;
     
     document.getElementById('delete-prompt-title').textContent = prompt.title;
@@ -1071,7 +1079,7 @@ function selectPrompt(id) {
         timestamp: new Date().toISOString()
     });
 
-    const prompt = prompts.find(p => p.id === id);
+    const prompt = prompts.find(p => p.id == id || p.id === String(id) || String(p.id) === String(id));
     if (!prompt) {
         console.error('❌ プロンプトが見つかりません:', id, 'prompts:', prompts);
         return;
