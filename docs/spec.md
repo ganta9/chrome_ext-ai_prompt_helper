@@ -1,54 +1,67 @@
-# AI Prompt Helper v6.0.0 仕様書 (現在の実装状況)
+# AI Prompt Helper v7.0.0 仕様書 (最新実装状況)
 
 ## 1. 概要
 
-本ドキュメントは、AI Prompt Helper Chrome拡張機能 バージョン6.0.0の**現在の実装状況**に基づく技術仕様、アーキテクチャ、UI設計を定義するものです。
+本ドキュメントは、AI Prompt Helper Chrome拡張機能 バージョン7.0.0の**最新実装状況**に基づく技術仕様、アーキテクチャ、UI設計を定義するものです。
 
 ### 1.1 プロジェクトの目的
-Googleスプレッドシートでプロンプトデータを一元管理し、Google Apps Script (GAS) をAPIとして利用することで、GitHub Pages上のWebサイトからプロンプトのリアルタイムな読み書きを実現する。
+GitHub Pagesで独立したプロンプト管理サイトを構築し、Chrome拡張機能と連携することで、AIサイト上でプロンプトの読み込み・編集・管理を効率的に行う。プロンプトデータはprompts.jsonファイルで管理し、GitHub API経由で自動保存を実現する。
 
-### 1.2 実装状況 (2025-09-15現在)
-- ✅ **Chrome拡張機能**: 基本機能実装済み
-- ✅ **GitHub Pages編集サイト**: 実装済み・デプロイ済み
-- ✅ **Google Apps Script API**: 実装済み・デプロイ済み
+### 1.2 実装状況 (2025-09-20現在)
+- ✅ **Chrome拡張機能**: 基本機能実装済み・安定動作
+- ✅ **GitHub Pages編集サイト**: 実装済み・デプロイ済み・プロンプト編集機能正常動作
+- ✅ **GitHub API自動保存**: prompts.json更新・Chrome拡張との設定同期完了
+- ✅ **デフォルトプロンプト編集機能**: ID型不整合問題を解決済み
+- ❌ **Google Apps Script連携**: v7.0.0で削除済み
 - ❌ **Service Worker**: 実装失敗により未使用
-- ⚠️ **Claude.ai対応**: CSP制限により制約あり
 
 ---
 
 ## 2. アーキテクチャ
 
-### 2.1. 実装済み構成図
+### 2.1. 実装済み構成図 (v7.0.0)
 
 ```
-+--------------------------+     +--------------------------+     +----------------------+
-| GitHub Pages (編集サイト)  |<--->| Google Apps Script (API) |<--->| Googleスプレッドシート |
-+--------------------------+     +--------------------------+     +----------------------+
-        ^                                                            ^
-        | (iframe通信)                                               | (データ原本)
-        v                                                            |
-+--------------------------+                                           |
-| Chrome拡張機能           |--------------------------------------------+
-| (content.js + popup)     |
-+--------------------------+
++---------------------------+     +----------------------+
+| GitHub Pages (編集サイト)   |<--->| prompts.json (GitHub) |
+| - プロンプト編集・管理       |     | - プロンプトデータ原本  |
+| - GitHub API自動保存        |     | - バージョン管理       |
++---------------------------+     +----------------------+
+        ^
+        | (iframe通信/設定同期)
+        v
++---------------------------+
+| Chrome拡張機能              |
+| - content.js (プロンプト挿入)|
+| - popup.js (設定・GitHub同期)|
++---------------------------+
 ```
 
-### 2.2. データフロー（実装済み）
-1. **データ読み込み**: GitHub Pagesサイトは、GAS APIの`getPrompts`アクションをJSONP形式で呼び出し、スプレッドシートから全プロンプトデータを取得して表示する。
-2. **データ書き込み (追加/更新/削除)**: ユーザーがGitHub Pagesサイトで編集操作を行うと、サイトはGAS APIの対応するアクション (`addPrompt`, `updatePrompt`, `deletePrompt`) をJSONPで呼び出す。
-3. **API処理**: GASはリクエストを受け取り、入力値を検証した後、スプレッドシートの対応する行を操作する。
-4. **拡張機能連携**: ユーザーがGitHub Pagesサイトでプロンプトを選択すると、サイトは`postMessage` APIを使い、選択されたプロンプト本文を元のAIサイトのタブで待機している`content.js`に送信する。
+### 2.2. データフロー（v7.0.0実装済み）
+1. **データ読み込み**: GitHub Pagesサイトは、まずprompts.jsonファイルをfetchで読み込み、プロンプトデータを表示する。
+2. **データ編集**: ユーザーがGitHub Pagesサイトでプロンプトの追加・編集・削除を行う。
+3. **自動保存**: 編集操作後、GitHub Repository Contents APIを使用してprompts.jsonファイルを更新する。
+4. **設定同期**: Chrome拡張機能とGitHub Pagesサイト間でGitHubトークン設定を同期する。
+5. **プロンプト選択**: ユーザーがプロンプトを選択すると、Clipboard APIとペーストイベントシミュレーションでAIサイトに挿入する。
 
-### 2.3. 実装制約・既知の問題
-- **Claude.ai制約**: Content Security Policy (CSP) によりiframe読み込みが制限される場合がある
-- **Service Worker**: 技術的制約により実装断念（DOM操作不可、JSONP実装不可）
-- **CORS制約**: 一部のAIサイトでのクロスオリジン通信制限
+### 2.3. 実装制約・既知の問題 (v7.0.0)
+- **GitHub API制限**: リポジトリContents API使用のため、Personal Access Token必要
+- **ブラウザキャッシュ**: script.js更新時に強制リロード（Ctrl+Shift+R）が必要な場合あり
+- **UTF-8エンコーディング**: 日本語文字でbtoa()エラー → encodeURIComponent対応済み
+- **ID型不整合**: デフォルトプロンプト（文字列ID）とユーザー作成（数値ID）→ 修正済み
+- **Service Worker**: 技術的制約により実装断念（DOM操作不可）
 
-### 2.4. 各コンポーネントの役割（実装済み）
-- **データ原本**: Googleスプレッドシート
-- **バックエンドAPI**: `google-apps-script.js` - スプレッドシートを操作するCRUD APIを提供し、ウェブアプリとしてデプロイ済み
-- **フロントエンド**: `docs/`ディレクトリ - プロンプトを管理するためのUIを提供し、GAS APIと通信するSPA（GitHub Pagesで公開済み）
-- **Chrome拡張機能**: `src/`ディレクトリ - AIサイト上にUIを注入し、設定画面やGitHub Pagesサイトとの連携機能を提供（manifest.json、popup.html、popup.js、content.js）
+### 2.4. 各コンポーネントの役割（v7.0.0実装済み）
+- **データ原本**: prompts.json（GitHub Pagesリポジトリに格納）
+- **フロントエンド**: GitHub Pagesサイト（docs/ディレクトリ）
+  - script.js: プロンプト管理・編集機能、GitHub API連携
+  - index.html: SPA UI、モーダル、検索・フィルタリング機能
+  - style.css: レスポンシブデザイン、ダークテーマ対応
+- **Chrome拡張機能**: src/ディレクトリ
+  - manifest.json: Manifest V3、必要権限の定義
+  - popup.html/popup.js: 設定画面、GitHub同期機能
+  - content.js: AIサイトでのプロンプト挿入機能
+  - background.js: Service Worker（Chrome拡張用、限定機能）
 
 ### 2.5. 対応AIサイト（実装済み）
 - **ChatGPT**: chat.openai.com, chatgpt.com
@@ -57,40 +70,94 @@ Googleスプレッドシートでプロンプトデータを一元管理し、Go
 - **Microsoft Copilot**: copilot.microsoft.com
 - **その他**: Perplexity、Felo.ai、NotebookLM、Grok等
 
-### 2.6. 実装されていない機能
+### 2.6. v7.0.0で削除された機能
+- ❌ **Google Apps Script連携**: v6.0.0から削除、GitHub API方式に移行
+- ❌ **Googleスプレッドシート**: データソースをprompts.jsonに変更
 - ❌ **Service Worker**: 技術的制約により実装断念
-- ❌ **バックグラウンド同期**: Service Worker実装失敗により未実装
-- ❌ **リアルタイム通知**: プッシュ通知機能未実装
+- ❌ **JSONP通信**: Fetch API + GitHub APIに移行
+- ❌ **複雑な同期機能**: シンプルなGitHubトークン同期のみ実装
 
 ---
 
-## 3. データ構造 (スプレッドシート)
+## 3. データ構造 (prompts.json)
 
-| ヘッダー | 説明 |
-|---|---|
-| id | ユニークID (GAS側で自動生成) |
-| title | プロンプトのタイトル |
-| prompt | プロンプト本文 |
-| memo | メモ |
-| tags | タグ（カンマ区切り） |
-| created_at | 作成日時 (GAS側で自動設定) |
-| updated_at | 更新日時 (GAS側で自動設定) |
-| deleted | 論理削除フラグ (GAS側で自動設定) |
+```json
+{
+  "prompts": [
+    {
+      "id": "p_z1s2h3ot",           // 文字列ID（デフォルトプロンプト）
+      "title": "基本的なタスク指示",
+      "prompt": "[タスク内容]を実行してください。
 
-- **補足**:
-  - `id`, `created_at`, `updated_at`, `deleted` 列は、Google Apps Scriptによって自動的に管理されます。手動でデータを入力する際は、これらの列を空欄にしておくことを推奨します。
-  - `tags` 列は、スプレッドシート上ではカンマ区切りの文字列として保存されます（例: `タグ1,タグ2`）。フロントエンド（GitHub Pages）では、この文字列が配列として処理されます。
+入力：",
+      "memo": "最も基本的な指示形式。明確で簡潔な指示に適用",
+      "tags": ["基本", "Zero-shot", "直接指示"],
+      "createdAt": "2025-09-15T10:00:00Z",
+      "updatedAt": "2025-09-15T10:00:00Z"
+    },
+    {
+      "id": 1758329559743.6858,    // 数値ID（ユーザー作成）
+      "title": "ユーザー作成プロンプト",
+      "prompt": "ユーザーが作成したプロンプト内容",
+      "memo": "メモ",
+      "tags": ["カスタム"],
+      "createdAt": "2025-09-20T00:52:39.743Z",
+      "updatedAt": "2025-09-20T01:07:53.474Z"
+    }
+  ]
+}
+```
+
+### 3.1 フィールド定義
+| フィールド | 型 | 説明 |
+|----------|---|-----|
+| id | string/number | デフォルト: 文字列、ユーザー作成: 数値（generateId()で生成） |
+| title | string | プロンプトのタイトル |
+| prompt | string | プロンプト本文 |
+| memo | string | メモ（任意） |
+| tags | Array<string> | タグ配列 |
+| createdAt | string | 作成日時（ISO 8601形式） |
+| updatedAt | string | 更新日時（ISO 8601形式） |
+
+### 3.2 重要な注意点
+- **ID型不整合**: デフォルトプロンプトは文字列ID、ユーザー作成は数値ID → 型変換対応済み
+- **フィールド名統一**: v7.0.0で全て camelCase に統一（created_at → createdAt）
+- **UTF-8対応**: 日本語文字をBase64エンコードする際はencodeURIComponent使用
 
 ---
 
-## 4. API設計
+## 4. GitHub API設計 (v7.0.0)
 
-詳細は`google-apps-script.js`内のコメントを参照。`doGet`関数が`action`パラメータに応じて処理を振り分ける。
+### 4.1 GitHub Repository Contents API
 
-- **action=getPrompts**: 全プロンプトを取得
-- **action=addPrompt**: プロンプトを新規追加
-- **action=updatePrompt**: 既存プロンプトを更新
-- **action=deletePrompt**: プロンプトを論理削除
+```javascript
+// prompts.json読み込み
+GET https://api.github.com/repos/{owner}/{repo}/contents/prompts.json
+Headers: {
+  'Authorization': 'token {personal_access_token}',
+  'Accept': 'application/vnd.github.v3+json'
+}
+
+// prompts.json更新
+PUT https://api.github.com/repos/{owner}/{repo}/contents/prompts.json
+Headers: {
+  'Authorization': 'token {personal_access_token}',
+  'Accept': 'application/vnd.github.v3+json',
+  'Content-Type': 'application/json'
+}
+Body: {
+  "message": "プロンプト更新: {title}",
+  "content": "{base64_encoded_content}",
+  "sha": "{current_file_sha}"
+}
+```
+
+### 4.2 実装済み関数
+- **autoSaveToGitHub()**: prompts配列をGitHub APIで自動保存
+- **getCurrentFileSha()**: prompts.jsonの現在SHAを取得
+- **GitHubConnector**: GitHub API操作を抽象化するクラス
+- **addPromptWithAutoSave()**: プロンプト追加+自動保存
+- **updatePromptWithAutoSave()**: プロンプト更新+自動保存
 
 ---
 
@@ -100,38 +167,62 @@ Googleスプレッドシートでプロンプトデータを一元管理し、Go
 
 ---
 
-## 6. 既知の制約・失敗事例
+## 6. 解決済み問題・失敗事例 (v7.0.0)
 
-### 6.1 Service Worker実装失敗 (2025-09-15)
-- **問題**: Service Worker環境でのDOM操作不可によりJSONP実装が失敗
-- **影響**: バックグラウンド同期機能、プッシュ通知機能が未実装
-- **対策**: 現状のiframe通信方式を継続使用
+### 6.1 デフォルトプロンプト編集機能修正 (2025-09-20)
+- **問題**: 3層の複合的問題（フィールド名不整合、ID型不整合、HTMLテンプレート構文エラー）
+- **解決**: 段階的修正により全て解決済み
+- **教訓**: エラーメッセージの軽視、推測に基づく修正の危険性
 
-### 6.2 Claude.ai CSP制約
-- **問題**: Content Security Policyによりiframe読み込みが制限される場合
-- **対策**: 他のAIサイト（ChatGPT、Gemini等）では正常動作
+### 6.2 GitHub API UTF-8エンコーディング (2025-09-20)
+- **問題**: 日本語文字でbtoa()エラー → InvalidCharacterError
+- **解決**: `btoa(unescape(encodeURIComponent(jsonString)))`で対応
+- **影響**: 日本語プロンプトの保存が正常動作
 
-### 6.3 実装状況の記録
-- **成功事例**: GitHub Pages連携、Google Apps Script API、基本的なChrome拡張機能
-- **失敗事例**: Service Worker、バックグラウンド処理系機能
-- **詳細**: `project-docs/fails.md` に全失敗事例を記録済み
+### 6.3 Service Worker実装失敗 (2025-09-15)
+- **問題**: DOM操作不可、JSONP実装不可
+- **対策**: GitHub API + Fetch方式への移行で解決
+- **教訓**: 技術選択前の環境制約調査の重要性
+
+### 6.4 記録・学習システム
+- **成功事例**: GitHub Pages連携、GitHub API自動保存、プロンプト編集機能
+- **失敗事例**: Service Worker、権限逸脱修正、推測に基づく修正
+- **詳細**: `docs/fails.md`、`docs/fails_session_2025_09_20.md` に全記録
 
 ---
 
-## 7. 今後の改善案
+## 7. v7.0.0で追加された機能
 
-### 7.1 技術的改善
-- Claude.ai CSP制約の回避策検討
-- 代替的なバックグラウンド処理方式の検討
-- Chrome拡張機能権限の最適化
+### 7.1 GitHub API自動保存システム
+- **自動保存**: プロンプト追加・編集・削除時にprompts.jsonを自動更新
+- **SHA管理**: 楽観ロック式の競合回避（getCurrentFileSha()）
+- **エラーハンドリング**: 409 Conflict、API制限エラーへの対応
+- **デバッグログ**: 詳細なログシステムで問題の早期発見
 
-### 7.2 機能追加候補
-- プロンプト検索機能
-- タグベースのカテゴリ分類
-- エクスポート/インポート機能
-- 使用頻度統計機能
+### 7.2 Chrome拡張機能との統合
+- **設定同期**: GitHubトークンをChrome拡張↔GitHub Pages間で同期
+- **シームレス連携**: iframe通信でのプロンプト選択・挿入
+- **セキュリティ**: Personal Access Tokenによる認証
 
-### 7.3 保守性向上
-- 自動テストの導入
-- エラー監視システムの構築
-- デプロイメント自動化
+### 7.3 プロンプト管理機能の充実
+- **デフォルトプロンプト**: 32個の即座に使用可能なプロンプトテンプレート
+- **検索・フィルタ**: タイトル、内容、タグでの絞り込み
+- **タグ管理**: 自動集計、重複除去、インタラクティブフィルタ
+- **レスポンシブデザイン**: モバイルフレンドリーなUI
+
+## 8. 今後の改善案
+
+### 8.1 安定性向上
+- **キャッシュ対策**: script.js更新時の自動キャッシュクリア
+- **プリフライトチェック**: GitHub API接続確認の自動化
+- **バックアップシステム**: prompts.jsonの自動バックアップ
+
+### 8.2 機能拡張
+- **履歴管理**: プロンプト編集履歴の追跡
+- **エクスポート機能**: 複数形式でのデータ出力
+- **テンプレート共有**: プロンプトテンプレートの公開・共有
+
+### 8.3 開発・保守性
+- **自動テスト**: E2Eテストの導入
+- **CI/CD**: GitHub Actionsによる自動デプロイ
+- **エラー監視**: リアルタイムエラー追跡システム
