@@ -457,7 +457,7 @@
     },
     {
       "id": "p_b2f4r6af",
-      "title": "Before/After 比較",
+      "title": "Before/After 比較あああ",
       "prompt": "以下の[対象]について、現状（Before）と改善後（After）を明確に対比して改善案を提示してください。\n\n対象：",
       "memo": "改善効果を明確に示すための比較分析手法",
       "tags": [
@@ -467,7 +467,7 @@
         "効果"
       ],
       "createdAt": "2025-09-15T10:30:00Z",
-      "updatedAt": "2025-09-15T10:30:00Z",
+      "updatedAt": "2025-09-20T03:15:55.885Z",
       "history": []
     }
   ]
