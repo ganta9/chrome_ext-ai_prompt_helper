@@ -56,40 +56,94 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function initializeApp() {
+    console.log('🚀 [INIT] =====================================');
+    console.log('🚀 [INIT] initializeApp() 開始');
+    console.log('🚀 [INIT] 初期状態:', {
+        promptsCount: prompts.length,
+        promptsTitles: prompts.slice(0, 3).map(p => p.title),
+        githubConnectorExists: !!githubConnector,
+        allTagsSize: allTags.size
+    });
+
     try {
         showLoading(true);
-        console.log('🔄 ステップ1: 設定読み込み開始');
+        console.log('🚀 [INIT] ローディング表示開始');
+
+        console.log('🚀 [INIT] ステップ1: 設定読み込み開始');
+        console.log('🚀 [INIT] プロンプト状態（設定前）:', {
+            count: prompts.length,
+            firstTitles: prompts.slice(0, 2).map(p => p.title)
+        });
 
         // GitHub設定の読み込み（LocalStorageから）
-        console.log('✅ ステップ1-1完了: GitHub設定確認');
+        console.log('🚀 [INIT] ステップ1-1: GitHub設定確認');
 
         // GitHub API連携初期化
+        console.log('🚀 [INIT] ステップ1-2: GitHub API連携初期化開始');
         await initializeGitHubConnection();
-        console.log('✅ ステップ1-2完了: GitHub API連携初期化');
+        console.log('🚀 [INIT] ステップ1-2完了: GitHub API連携初期化');
+        console.log('🚀 [INIT] プロンプト状態（GitHub初期化後）:', {
+            count: prompts.length,
+            firstTitles: prompts.slice(0, 2).map(p => p.title)
+        });
 
-        console.log('🔄 ステップ2: データ読み込み開始');
+        console.log('🚀 [INIT] ステップ2: データ読み込み開始');
+        console.log('🚀 [INIT] プロンプト状態（読み込み前）:', {
+            count: prompts.length,
+            firstTitles: prompts.slice(0, 2).map(p => p.title)
+        });
 
         // サンプルデータまたは既存データの読み込み
         await loadPrompts();
-        console.log('✅ ステップ2完了: データ読み込み成功');
+        console.log('🚀 [INIT] ステップ2完了: データ読み込み成功');
+        console.log('🚀 [INIT] プロンプト状態（読み込み後）:', {
+            count: prompts.length,
+            firstTitles: prompts.slice(0, 3).map(p => p.title),
+            allTitles: prompts.map(p => p.title)
+        });
 
-        console.log('🔄 ステップ3: UI更新開始');
-        // UI更新
+        console.log('🚀 [INIT] ステップ3: UI更新開始');
+
+        console.log('🚀 [INIT] ステップ3-1: タグリスト更新開始');
         updateTagList();
-        console.log('✅ ステップ3-1完了: タグリスト更新');
+        console.log('🚀 [INIT] ステップ3-1完了: タグリスト更新');
+        console.log('🚀 [INIT] タグ状態:', {
+            allTagsSize: allTags.size,
+            tags: Array.from(allTags).slice(0, 5)
+        });
 
+        console.log('🚀 [INIT] ステップ3-2: プロンプト描画開始');
         renderPrompts();
-        console.log('✅ ステップ3-2完了: プロンプト描画');
+        console.log('🚀 [INIT] ステップ3-2完了: プロンプト描画');
 
+        console.log('🚀 [INIT] ステップ3-3: カウント更新開始');
         updateCounts();
-        console.log('✅ ステップ3-3完了: カウント更新');
+        console.log('🚀 [INIT] ステップ3-3完了: カウント更新');
 
         showLoading(false);
-        console.log('✅ 初期化完全成功');
+        console.log('🚀 [INIT] ローディング非表示完了');
+
+        console.log('🟢 [SUCCESS] 初期化完全成功');
+        console.log('🚀 [INIT] 最終状態:', {
+            promptsCount: prompts.length,
+            promptsTitles: prompts.slice(0, 5).map(p => p.title),
+            allTagsSize: allTags.size,
+            githubConnectorExists: !!githubConnector
+        });
+        console.log('🚀 [INIT] =====================================');
 
     } catch (error) {
-        console.error('💥 initializeApp内部エラー:', error);
+        console.error('🔴 [ERROR] initializeApp内部エラー:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+        console.log('🚀 [INIT] エラー時の状態:', {
+            promptsCount: prompts.length,
+            githubConnectorExists: !!githubConnector
+        });
         showLoading(false);
+        console.log('🚀 [INIT] =====================================');
         throw error; // エラーを上位に再スロー
     }
 }
@@ -161,48 +215,141 @@ function setupEventListeners() {
 // ========================================================================== 
 
 async function loadPrompts() {
+    console.log('📥 [LOAD] =====================================');
+    console.log('📥 [LOAD] loadPrompts() 開始');
+    console.log('📥 [LOAD] 現在のpromptsデータ状態:', {
+        count: prompts.length,
+        first3Titles: prompts.slice(0, 3).map(p => p.title)
+    });
+
     try {
-        console.log('📊 プロンプトデータ読み込み開始');
-        
         // 1. 最優先: prompts.jsonファイルから読み込み（v7.0.0対応）
-        console.log('🔄 prompts.jsonから読み込み中...');
+        console.log('📥 [LOAD] データソース1: prompts.jsonファイル読み込み開始');
+        console.log('📥 [LOAD] Fetch URL: ./prompts.json');
+
         try {
             const response = await fetch('./prompts.json');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.prompts && Array.isArray(data.prompts)) {
-                    prompts = data.prompts;
-                    console.log('✅ prompts.json読み込み成功:', prompts.length, '個のプロンプト');
-                    console.log('✅ 最初のプロンプト:', prompts[0]?.title);
-                    updateAllTags();
-                    return;
+            console.log('📥 [LOAD] Fetch レスポンス:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                url: response.url,
+                headers: {
+                    'content-type': response.headers.get('content-type'),
+                    'last-modified': response.headers.get('last-modified'),
+                    'etag': response.headers.get('etag')
                 }
+            });
+
+            if (response.ok) {
+                console.log('📥 [LOAD] JSON解析開始...');
+                const data = await response.json();
+                console.log('📥 [LOAD] JSON解析完了:', {
+                    hasPrompts: !!data.prompts,
+                    isArray: Array.isArray(data.prompts),
+                    version: data.version,
+                    lastUpdated: data.last_updated,
+                    promptCount: data.prompts?.length || 0
+                });
+
+                if (data.prompts && Array.isArray(data.prompts)) {
+                    const oldCount = prompts.length;
+                    prompts = data.prompts;
+                    console.log('🟢 [SUCCESS] prompts.json読み込み成功');
+                    console.log('📥 [LOAD] データ更新:', {
+                        before: oldCount,
+                        after: prompts.length,
+                        delta: prompts.length - oldCount
+                    });
+                    console.log('📥 [LOAD] 読み込んだプロンプト一覧:',
+                        prompts.slice(0, 5).map((p, i) => `${i+1}. ${p.title} (${p.id})`)
+                    );
+                    updateAllTags();
+                    console.log('📥 [LOAD] updateAllTags() 完了');
+                    console.log('📥 [LOAD] loadPrompts() 正常終了 - prompts.jsonから読み込み');
+                    return;
+                } else {
+                    console.log('🔴 [ERROR] prompts.json構造異常:', data);
+                }
+            } else {
+                console.log('🔴 [ERROR] prompts.json取得失敗:', response.status, response.statusText);
             }
         } catch (jsonError) {
-            console.warn('⚠️ prompts.json読み込み失敗:', jsonError);
+            console.error('🔴 [ERROR] prompts.json読み込みエラー:', {
+                message: jsonError.message,
+                stack: jsonError.stack,
+                name: jsonError.name
+            });
         }
         
-        // 2. フォールバック: 既にprompts.jsonから読み込み済みのためスキップ
+        console.log('📥 [LOAD] データソース1（prompts.json）失敗、フォールバック開始');
 
-        // 3. フォールバック: ローカルストレージ
-        console.log('📁 ローカルストレージから読み込み');
+        // 2. フォールバック: ローカルストレージ
+        console.log('📥 [LOAD] データソース2: ローカルストレージ読み込み開始');
         const savedData = localStorage.getItem('promptsData');
+        console.log('📥 [LOAD] ローカルストレージ状態:', {
+            hasData: !!savedData,
+            dataLength: savedData?.length || 0,
+            keys: Object.keys(localStorage)
+        });
+
         if (savedData) {
-            const data = JSON.parse(savedData);
-            prompts = data.prompts || [];
-            console.log('📁 ローカルデータ読み込み:', prompts.length, '個のプロンプト');
+            try {
+                console.log('📥 [LOAD] ローカルストレージJSON解析開始...');
+                const data = JSON.parse(savedData);
+                console.log('📥 [LOAD] ローカルストレージJSON解析完了:', {
+                    hasPrompts: !!data.prompts,
+                    isArray: Array.isArray(data.prompts),
+                    version: data.version,
+                    lastUpdated: data.lastUpdated,
+                    promptCount: data.prompts?.length || 0
+                });
+
+                const oldCount = prompts.length;
+                prompts = data.prompts || [];
+                console.log('🟢 [SUCCESS] ローカルストレージ読み込み成功');
+                console.log('📥 [LOAD] データ更新:', {
+                    before: oldCount,
+                    after: prompts.length,
+                    delta: prompts.length - oldCount
+                });
+                console.log('📥 [LOAD] 読み込んだプロンプト一覧:',
+                    prompts.slice(0, 5).map((p, i) => `${i+1}. ${p.title || '(タイトルなし)'} (${p.id || '(IDなし)'})`)
+                );
+            } catch (parseError) {
+                console.error('🔴 [ERROR] ローカルストレージJSON解析エラー:', {
+                    message: parseError.message,
+                    stack: parseError.stack,
+                    rawData: savedData.substring(0, 200) + '...'
+                });
+                prompts = [];
+            }
         } else {
+            console.log('📥 [LOAD] ローカルストレージにデータなし、空の配列で初期化');
             prompts = [];
-            console.log('📁 データなし、空の配列で初期化');
         }
 
         updateAllTags();
-        
+        console.log('📥 [LOAD] updateAllTags() 完了');
+        console.log('📥 [LOAD] loadPrompts() 正常終了 - ローカルストレージから読み込み');
+
     } catch (error) {
-        console.error('データ読み込みエラー:', error);
+        console.error('🔴 [ERROR] loadPrompts() 予期しないエラー:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+        console.log('📥 [LOAD] エラーリカバリー: 空の配列で初期化');
         prompts = [];
         updateAllTags();
+        console.log('📥 [LOAD] エラーリカバリー完了');
     }
+
+    console.log('📥 [LOAD] =====================================');
+    console.log('📥 [LOAD] loadPrompts() 最終結果:', {
+        finalCount: prompts.length,
+        finalTitles: prompts.slice(0, 3).map(p => p.title || '(タイトルなし)')
+    });
 }
 
 async function savePrompts() {
@@ -576,43 +723,142 @@ function handleKeyboard(e) {
 // ========================================================================== 
 
 async function addPrompt(data) {
+    console.log('➕ [ADD] =====================================');
+    console.log('➕ [ADD] addPrompt() 開始');
+    console.log('➕ [ADD] 入力データ:', {
+        title: data.title,
+        promptLength: data.prompt?.length || 0,
+        memo: data.memo,
+        tagsCount: data.tags?.length || 0,
+        tags: data.tags
+    });
+    console.log('➕ [ADD] 追加前のプロンプト数:', prompts.length);
+
+    const newId = generateId();
+    const timestamp = getCurrentTimestamp();
     const newPrompt = {
-        id: generateId(),
+        id: newId,
         ...data,
-        createdAt: getCurrentTimestamp(),
-        updatedAt: getCurrentTimestamp()
+        createdAt: timestamp,
+        updatedAt: timestamp
     };
 
-    prompts.unshift(newPrompt);
-    updateAllTags();
-    await savePrompts();
+    console.log('➕ [ADD] 新しいプロンプト作成:', {
+        id: newPrompt.id,
+        title: newPrompt.title,
+        createdAt: newPrompt.createdAt
+    });
 
+    const oldCount = prompts.length;
+    prompts.unshift(newPrompt);
+    console.log('➕ [ADD] prompts配列に追加完了:', {
+        before: oldCount,
+        after: prompts.length,
+        newPromptPosition: 0
+    });
+
+    console.log('➕ [ADD] updateAllTags() 実行...');
+    updateAllTags();
+    console.log('➕ [ADD] updateAllTags() 完了');
+
+    console.log('➕ [ADD] savePrompts() 実行...');
+    await savePrompts();
+    console.log('➕ [ADD] savePrompts() 完了');
+
+    console.log('➕ [ADD] UI更新開始...');
     closeModal();
+    console.log('➕ [ADD] モーダル閉じる完了');
+
     updateTagList();
+    console.log('➕ [ADD] タグリスト更新完了');
+
     renderPrompts();
+    console.log('➕ [ADD] プロンプト描画完了');
+
     updateCounts();
+    console.log('➕ [ADD] カウント更新完了');
+
+    console.log('🟢 [SUCCESS] addPrompt() 完了');
+    console.log('➕ [ADD] =====================================');
 
     showNotification('プロンプトを追加しました', 'success');
     return newPrompt;
 }
 
 async function updatePrompt(id, data) {
-    const index = prompts.findIndex(p => p.id === id);
-    if (index === -1) return;
+    console.log('✏️ [UPDATE] =====================================');
+    console.log('✏️ [UPDATE] updatePrompt() 開始');
+    console.log('✏️ [UPDATE] パラメータ:', {
+        id: id,
+        title: data.title,
+        promptLength: data.prompt?.length || 0,
+        memo: data.memo,
+        tagsCount: data.tags?.length || 0,
+        tags: data.tags
+    });
 
+    const index = prompts.findIndex(p => p.id === id);
+    console.log('✏️ [UPDATE] プロンプト検索結果:', {
+        targetId: id,
+        foundIndex: index,
+        exists: index !== -1,
+        totalPrompts: prompts.length
+    });
+
+    if (index === -1) {
+        console.log('🔴 [ERROR] 更新対象のプロンプトが見つかりません');
+        console.log('✏️ [UPDATE] =====================================');
+        return;
+    }
+
+    const oldPrompt = { ...prompts[index] };
+    console.log('✏️ [UPDATE] 更新前のプロンプト:', {
+        id: oldPrompt.id,
+        title: oldPrompt.title,
+        updatedAt: oldPrompt.updatedAt
+    });
+
+    const timestamp = getCurrentTimestamp();
     prompts[index] = {
         ...prompts[index],
         ...data,
-        updatedAt: getCurrentTimestamp()
+        updatedAt: timestamp
     };
 
-    updateAllTags();
-    await savePrompts();
+    console.log('✏️ [UPDATE] プロンプト更新完了:', {
+        id: prompts[index].id,
+        title: prompts[index].title,
+        updatedAt: prompts[index].updatedAt,
+        changed: {
+            title: oldPrompt.title !== prompts[index].title,
+            prompt: oldPrompt.prompt !== prompts[index].prompt,
+            memo: oldPrompt.memo !== prompts[index].memo
+        }
+    });
 
+    console.log('✏️ [UPDATE] updateAllTags() 実行...');
+    updateAllTags();
+    console.log('✏️ [UPDATE] updateAllTags() 完了');
+
+    console.log('✏️ [UPDATE] savePrompts() 実行...');
+    await savePrompts();
+    console.log('✏️ [UPDATE] savePrompts() 完了');
+
+    console.log('✏️ [UPDATE] UI更新開始...');
     closeModal();
+    console.log('✏️ [UPDATE] モーダル閉じる完了');
+
     updateTagList();
+    console.log('✏️ [UPDATE] タグリスト更新完了');
+
     renderPrompts();
+    console.log('✏️ [UPDATE] プロンプト描画完了');
+
     updateCounts();
+    console.log('✏️ [UPDATE] カウント更新完了');
+
+    console.log('🟢 [SUCCESS] updatePrompt() 完了');
+    console.log('✏️ [UPDATE] =====================================');
 
     showNotification('プロンプトを更新しました', 'success');
     return prompts[index];
@@ -1132,28 +1378,82 @@ class GitHubConnector {
     }
 
     async getCurrentFileSha() {
+        console.log('🔑 [SHA] =====================================');
+        console.log('🔑 [SHA] getCurrentFileSha() 開始');
+        console.log('🔑 [SHA] パラメータ:', {
+            owner: this.owner,
+            repo: this.repo,
+            filePath: this.filePath,
+            branch: this.branch,
+            hasToken: !!this.token
+        });
+
         try {
-            const response = await fetch(
-                `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.filePath}?ref=${this.branch}`,
-                {
-                    headers: {
-                        'Authorization': `token ${this.token}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
+            const url = `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.filePath}?ref=${this.branch}`;
+            console.log('🔑 [SHA] API URL:', url);
+
+            console.log('🔑 [SHA] GitHub API リクエスト開始...');
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${this.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
                 }
-            );
+            });
+
+            console.log('🔑 [SHA] GitHub API レスポンス受信:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                url: response.url,
+                headers: {
+                    'content-type': response.headers.get('content-type'),
+                    'x-ratelimit-limit': response.headers.get('x-ratelimit-limit'),
+                    'x-ratelimit-remaining': response.headers.get('x-ratelimit-remaining'),
+                    'etag': response.headers.get('etag'),
+                    'last-modified': response.headers.get('last-modified')
+                }
+            });
 
             if (response.ok) {
+                console.log('🔑 [SHA] JSON解析開始...');
                 const data = await response.json();
+                console.log('🔑 [SHA] JSON解析完了:', {
+                    sha: data.sha,
+                    name: data.name,
+                    path: data.path,
+                    size: data.size,
+                    downloadUrl: data.download_url
+                });
+
+                console.log('🟢 [SUCCESS] getCurrentFileSha() 成功 - SHA:', data.sha);
+                console.log('🔑 [SHA] =====================================');
                 return data.sha;
             } else if (response.status === 404) {
-                // ファイルが存在しない場合は新規作成
+                console.log('🟡 [INFO] ファイル未存在（404）- 新規作成予定');
+                console.log('🔑 [SHA] =====================================');
                 return null;
             } else {
-                throw new Error(`GitHub API エラー: ${response.status}`);
+                console.log('🔴 [ERROR] GitHub APIエラーレスポンス - JSON解析中...');
+                let errorData = {};
+                try {
+                    errorData = await response.json();
+                } catch (parseError) {
+                    console.log('🔴 [ERROR] エラーレスポンスのJSON解析失敗:', parseError);
+                }
+                console.error('🔴 [ERROR] GitHub API エラー詳細:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData: errorData
+                });
+                throw new Error(`GitHub API エラー: ${response.status} - ${errorData.message || response.statusText}`);
             }
         } catch (error) {
-            console.error('❌ GitHub SHA取得エラー:', error);
+            console.error('🔴 [ERROR] getCurrentFileSha() エラー:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            console.log('🔑 [SHA] =====================================');
             throw error;
         }
     }
