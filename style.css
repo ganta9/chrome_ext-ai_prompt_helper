@@ -1111,10 +1111,10 @@ body {
 }
 
 /* ==========================================================================
-   v7.1.1 プレビューモーダル専用スタイル（大画面・情報密度最適化）
+   v7.3.0 プレビューモーダル再設計 (Flexboxレイアウト)
    ========================================================================== */
 
-/* プレビューモーダル - 98%サイズで完全最大化（px制約完全解除） */
+/* Flexboxレイアウトをモーダル全体に適用 */
 .modal.modal-preview {
   width: 95vw !important;
   height: 95vh !important;
@@ -1123,56 +1123,55 @@ body {
   margin: 2.5vh auto !important;
   box-shadow: none !important;
   overflow: hidden !important;
+  display: flex !important; /* ★ Flexboxコンテナ化 */
+  flex-direction: column !important; /* ★ 縦方向に配置 */
 }
 
-/* プレビューヘッダー - 3vh固定（min-height制約解除） */
+/* ヘッダー: 高さを固定 */
 .modal-preview .preview-header {
-  height: 3vh !important;
-  min-height: unset !important;
-  padding: 0.5vh 1vw !important;
+  flex-shrink: 0; /* ★ 縮まないように設定 */
+  padding: 0.5rem 1rem; /* rem単位で固定 */
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .preview-header h3 {
-  font-size: 16px;
+  font-size: 1rem;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* プレビューコンテンツ - パーセンテージ指定 */
-.preview-content {
+/* コンテンツエリア: 残りの領域をすべて使用 */
+.modal-preview .preview-content {
+  flex-grow: 1; /* ★ 残りの領域を埋める */
+  min-height: 0; /* ★ Flexアイテムの縮小を許可 */
+  padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: 0;
 }
 
-/* プロンプト表示メイン領域 - 94vh占有（px制約完全解除） */
+/* メイン表示領域: コンテンツエリアの大部分を占める */
 .modal-preview .preview-main {
-  height: 88vh !important; /* ボタン表示領域確保のため 89vh → 88vh */
-  overflow-y: hidden !important;
-  padding: 0.3vh 0.5vw !important;
+  flex-grow: 1; /* ★ 残りの領域を埋める */
+  min-height: 0; /* ★ Flexアイテムの縮小を許可 */
+  overflow-y: auto; /* ★ スクロールを有効化 */
+  padding: 0.5rem 1rem;
   background-color: var(--bg-primary);
-  flex-shrink: 0;
 }
 
-/* プレビューフッター - 3vh固定（min-height制約解除） */
+/* フッター: 高さを固定 */
 .modal-preview .preview-footer {
-  height: 4vh !important; /* ボタン表示領域確保のため 3vh → 4vh */
-  min-height: unset !important;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5vh 1vw !important;
+  flex-shrink: 0; /* ★ 縮まないように設定 */
+  padding: 0.5rem 1rem; /* rem単位で固定 */
   border-top: 1px solid var(--border);
   background-color: var(--bg-secondary);
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .preview-meta {
@@ -1180,7 +1179,7 @@ body {
 }
 
 .preview-date {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -1189,17 +1188,16 @@ body {
   gap: 8px;
 }
 
-/* コンパクトボタン */
 .btn-compact {
   padding: 4px 12px;
   font-size: 12px;
   min-height: auto;
 }
 
-/* プレビューモーダル内のマークダウン - 相対サイズ化 */
+/* マークダウンのスタイル: 行間とフォントサイズを再調整 */
 .modal-preview .preview-main .markdown-content {
-  font-size: 0.8rem !important;
-  line-height: 1.2 !important; /* 行間を少し広げて可読性向上 */
+  font-size: 0.75rem !important; /* さらに小さくして情報密度向上 */
+  line-height: 1.15 !important; /* ご要望に応じて行間を狭く */
 }
 
 .modal-preview .preview-main .markdown-content h1,
@@ -1214,11 +1212,11 @@ body {
 .modal-preview .preview-main .markdown-content p,
 .modal-preview .preview-main .markdown-content ul,
 .modal-preview .preview-main .markdown-content ol {
-  margin: 0.4em 0 !important; /* 段落間のマージンを調整 */
+  margin: 0.2em 0 !important; /* 段落間のマージンをさらに狭く */
 }
 
 .modal-preview .preview-main .markdown-content li {
-  margin: 0.05em 0 !important;
+  margin: 0 !important;
 }
 
 .modal-preview .preview-main .markdown-content pre {
@@ -1226,14 +1224,13 @@ body {
   padding: 0.3em !important;
 }
 
-/* プレビューモーダル専用の.prompt-preview制約解除 */
+/* 継承された不要なスタイルをリセット */
 .modal-preview .prompt-preview {
-  display: block !important; /* ★★★ 修正: -webkit-boxを上書き ★★★ */
-  max-height: none !important;
-  height: 100% !important;
-  padding: 0.5rem !important;
+  display: block !important;
+  height: auto !important;
+  padding: 0 !important;
   margin: 0 !important;
   border: none !important;
   background: transparent !important;
-  overflow-y: auto !important; /* visibleからautoに変更し、スクロールを正常化 */
+  overflow-y: visible !important; /* 親のpreview-mainでスクロール制御 */
 }
