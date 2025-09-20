@@ -1651,6 +1651,42 @@ class GitHubConnector {
                     author: result.commit.author.name
                 });
                 return { success: true, sha: result.commit.sha };
+            } else if (response.status === 409) {
+                console.log('🟨 [RETRY] 409 Conflict detected - SHA値の競合、自動リトライ実行中...');
+                const error = await response.json();
+                console.log('🟨 [RETRY] エラー詳細:', error.message);
+
+                // 最新のSHA値を取得してリトライ
+                console.log('🟨 [RETRY] 最新SHA値取得中...');
+                const latestSha = await this.getCurrentFileSha();
+                console.log('🟨 [RETRY] 最新SHA値:', latestSha);
+
+                // SHA値を更新してリトライ
+                requestBody.sha = latestSha;
+                console.log('🟨 [RETRY] SHA値を更新してリトライ実行...');
+
+                const retryResponse = await fetch(
+                    `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.filePath}`,
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${this.token}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestBody)
+                    }
+                );
+
+                if (retryResponse.ok) {
+                    const retryResult = await retryResponse.json();
+                    console.log('🟢 [SUCCESS] リトライ成功:', retryResult.commit.sha);
+                    return { success: true, sha: retryResult.commit.sha };
+                } else {
+                    const retryError = await retryResponse.json();
+                    console.error('🔴 [ERROR] リトライも失敗:', retryError);
+                    throw new Error(`GitHub API リトライエラー: ${retryError.message}`);
+                }
             } else {
                 console.log('🔴 [ERROR] GitHub API エラーレスポンス、JSON解析中...');
                 const error = await response.json();
