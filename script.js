@@ -540,14 +540,14 @@ function renderPrompts() {
     emptyState.style.display = 'none';
     
     grid.innerHTML = filteredPrompts.map(prompt => `
-        <div class="prompt-card" data-id="${prompt.id}">
+        <div class="prompt-card" data-id="${prompt.id}" onclick="selectAndPreview('${prompt.id}')" style="cursor: pointer;">
             <div class="prompt-card-header">
                 <h3 class="prompt-title">${escapeHtml(prompt.title)}</h3>
                 <div class="prompt-actions">
-                    <button class="action-btn" onclick="editPrompt('${prompt.id}')" title="編集">
+                    <button class="action-btn" onclick="event.stopPropagation(); editPrompt('${prompt.id}')" title="編集">
                         ✏️
                     </button>
-                    <button class="action-btn" onclick="showDeleteModal('${prompt.id}')" title="削除">
+                    <button class="action-btn" onclick="event.stopPropagation(); showDeleteModal('${prompt.id}')" title="削除">
                         🗑️
                     </button>
                 </div>
@@ -565,9 +565,7 @@ function renderPrompts() {
             
             <div class="prompt-footer">
                 <span>作成: ${formatDate(prompt.createdAt)}</span>
-                <button class="btn btn-primary" onclick="selectAndPreview('${prompt.id}')">
-                    選択
-                </button>
+                <!-- 選択ボタンを削除し、カード全体をクリック可能に変更 -->
             </div>
         </div>
     `).join('');
