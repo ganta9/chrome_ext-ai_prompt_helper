@@ -1155,7 +1155,7 @@ body {
 
 /* プロンプト表示メイン領域 - 94vh占有（px制約完全解除） */
 .modal-preview .preview-main {
-  height: 89vh !important;
+  height: 88vh !important; /* ボタン表示領域確保のため 89vh → 88vh */
   overflow-y: hidden !important;
   padding: 0.3vh 0.5vw !important;
   background-color: var(--bg-primary);
@@ -1164,7 +1164,7 @@ body {
 
 /* プレビューフッター - 3vh固定（min-height制約解除） */
 .modal-preview .preview-footer {
-  height: 3vh !important;
+  height: 4vh !important; /* ボタン表示領域確保のため 3vh → 4vh */
   min-height: unset !important;
   display: flex;
   justify-content: space-between;
@@ -1198,8 +1198,8 @@ body {
 
 /* プレビューモーダル内のマークダウン - 相対サイズ化 */
 .modal-preview .preview-main .markdown-content {
-  font-size: 0.8rem !important;      /* 12px → 0.8rem 相対化 */
-  line-height: 1.1 !important;
+  font-size: 0.8rem !important;
+  line-height: 1.2 !important; /* 行間を少し広げて可読性向上 */
 }
 
 .modal-preview .preview-main .markdown-content h1,
@@ -1208,22 +1208,22 @@ body {
 .modal-preview .preview-main .markdown-content h4,
 .modal-preview .preview-main .markdown-content h5,
 .modal-preview .preview-main .markdown-content h6 {
-  margin: 0.2em 0 0.1em 0 !important;  /* px → em相対化 */
+  margin: 0.2em 0 0.1em 0 !important;
 }
 
 .modal-preview .preview-main .markdown-content p,
 .modal-preview .preview-main .markdown-content ul,
 .modal-preview .preview-main .markdown-content ol {
-  margin: 0.1em 0 !important;        /* px → em相対化 */
+  margin: 0.4em 0 !important; /* 段落間のマージンを調整 */
 }
 
 .modal-preview .preview-main .markdown-content li {
-  margin: 0.05em 0 !important;      /* px → em相対化 */
+  margin: 0.05em 0 !important;
 }
 
 .modal-preview .preview-main .markdown-content pre {
-  margin: 0.2em 0 !important;        /* px → em相対化 */
-  padding: 0.3em !important;         /* px → em相対化 */
+  margin: 0.2em 0 !important;
+  padding: 0.3em !important;
 }
 
 /* プレビューモーダル専用の.prompt-preview制約解除 */
