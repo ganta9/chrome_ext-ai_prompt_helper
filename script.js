@@ -499,6 +499,7 @@ function addSuggestedTag(tag) {
 }
 
 async function handleSubmit(e) {
+    console.log('🔵 [DEBUG] handleSubmit 開始');
     e.preventDefault();
 
     const title = document.getElementById('prompt-title').value.trim();
@@ -506,7 +507,10 @@ async function handleSubmit(e) {
     const memo = document.getElementById('prompt-memo').value.trim();
     const tagsInput = document.getElementById('prompt-tags').value.trim();
 
+    console.log('🔵 [DEBUG] 入力値:', { title, contentLength: content.length, memo, tagsInput });
+
     if (!title || !content) {
+        console.log('🔵 [DEBUG] バリデーションエラー: タイトルまたはコンテンツが空');
         showNotification('タイトルとプロンプトは必須です', 'error');
         return;
     }
@@ -520,14 +524,24 @@ async function handleSubmit(e) {
         tags
     };
 
+    console.log('🔵 [DEBUG] プロンプトデータ準備完了:', {
+        title: promptData.title,
+        promptLength: promptData.prompt.length,
+        memo: promptData.memo,
+        tagsCount: promptData.tags.length
+    });
+
     try {
         if (currentEditId) {
+            console.log('🔵 [DEBUG] 更新モード - updatePromptWithAutoSave 実行');
             await updatePromptWithAutoSave(currentEditId, promptData);
         } else {
+            console.log('🔵 [DEBUG] 追加モード - addPromptWithAutoSave 実行');
             await addPromptWithAutoSave(promptData);
         }
+        console.log('🟢 [SUCCESS] handleSubmit 正常完了');
     } catch (error) {
-        console.error('プロンプト操作エラー:', error);
+        console.error('🔴 [ERROR] プロンプト操作エラー:', error);
         showNotification(`操作に失敗しました: ${error.message}`, 'error');
     }
 }
@@ -1145,13 +1159,24 @@ class GitHubConnector {
     }
 
     async updatePromptsFile(promptsData) {
+        console.log('🟪 [DEBUG] updatePromptsFile() 開始');
         try {
+            console.log('🟪 [DEBUG] トークン確認:', !!this.token);
             if (!this.token) {
+                console.log('🟪 [DEBUG] トークン未設定、initialize() 実行...');
                 await this.initialize();
+                console.log('🟪 [DEBUG] initialize() 完了、トークン:', !!this.token);
             }
 
+            console.log('🟪 [DEBUG] getCurrentFileSha() 実行...');
             const sha = await this.getCurrentFileSha();
-            const content = btoa(JSON.stringify(promptsData, null, 2)); // Base64エンコード
+            console.log('🟪 [DEBUG] getCurrentFileSha() 完了、SHA:', sha || 'なし');
+
+            console.log('🟪 [DEBUG] JSON変換とBase64エンコード...');
+            const jsonString = JSON.stringify(promptsData, null, 2);
+            console.log('🟪 [DEBUG] JSON文字列長:', jsonString.length);
+            const content = btoa(jsonString); // Base64エンコード
+            console.log('🟪 [DEBUG] Base64エンコード完了、長さ:', content.length);
 
             const requestBody = {
                 message: '🤖 Auto-save: プロンプトデータ更新',
@@ -1161,7 +1186,20 @@ class GitHubConnector {
 
             if (sha) {
                 requestBody.sha = sha;
+                console.log('🟪 [DEBUG] SHA をリクエストに追加');
+            } else {
+                console.log('🟪 [DEBUG] 新規ファイル作成（SHA なし）');
             }
+
+            console.log('🟪 [DEBUG] リクエストボディ準備完了:', {
+                message: requestBody.message,
+                branch: requestBody.branch,
+                hasSha: !!requestBody.sha,
+                contentLength: requestBody.content.length
+            });
+
+            console.log('🟪 [DEBUG] GitHub API リクエスト実行中...');
+            console.log('🟪 [DEBUG] URL:', `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.filePath}`);
 
             const response = await fetch(
                 `${this.apiBase}/repos/${this.owner}/${this.repo}/contents/${this.filePath}`,
@@ -1176,12 +1214,22 @@ class GitHubConnector {
                 }
             );
 
+            console.log('🟪 [DEBUG] GitHub API レスポンス受信、ステータス:', response.status);
+
             if (response.ok) {
+                console.log('🟪 [DEBUG] レスポンス成功、JSON解析中...');
                 const result = await response.json();
-                console.log('✅ GitHub API 保存成功:', result.commit.sha);
+                console.log('🟢 [SUCCESS] GitHub API 保存成功:', result.commit.sha);
+                console.log('🟢 [SUCCESS] コミット情報:', {
+                    sha: result.commit.sha,
+                    message: result.commit.message,
+                    author: result.commit.author.name
+                });
                 return { success: true, sha: result.commit.sha };
             } else {
+                console.log('🔴 [ERROR] GitHub API エラーレスポンス、JSON解析中...');
                 const error = await response.json();
+                console.error('🔴 [ERROR] GitHub API エラー詳細:', error);
                 throw new Error(`GitHub API エラー: ${error.message}`);
             }
 
@@ -1193,19 +1241,36 @@ class GitHubConnector {
 
     // Debounce処理付きの自動保存
     async autoSave(promptsData) {
+        console.log('🟨 [DEBUG] GitHubConnector.autoSave() 開始');
+        console.log('🟨 [DEBUG] データ:', { promptsCount: promptsData.prompts?.length || 0 });
+
         // 連続編集時のAPI呼び出し最小化
         clearTimeout(this.debounceTimer);
+        console.log('🟨 [DEBUG] デバウンスタイマーリセット完了');
 
+        console.log('🟨 [DEBUG] 1秒後に保存処理を実行予定...');
         this.debounceTimer = setTimeout(async () => {
+            console.log('🟨 [DEBUG] デバウンス期間終了、実際の保存処理開始');
             try {
+                console.log('🟨 [DEBUG] updatePromptsFile() 実行中...');
                 await this.updatePromptsFile(promptsData);
+                console.log('🟢 [SUCCESS] updatePromptsFile() 完了');
+
                 showNotification('✅ 自動保存完了', 'success');
                 githubSettings.lastSyncTime = new Date().toISOString();
+                console.log('🟢 [SUCCESS] lastSyncTime 更新:', githubSettings.lastSyncTime);
             } catch (error) {
-                console.error('自動保存エラー:', error);
+                console.error('🔴 [ERROR] 自動保存エラー:', error);
+                console.error('🔴 [ERROR] エラー詳細:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
                 showNotification(`⚠️ 自動保存失敗: ${error.message}`, 'error');
             }
         }, 1000); // 1秒間編集なしで保存実行
+
+        console.log('🟨 [DEBUG] デバウンスタイマー設定完了');
     }
 
     async testConnection() {
@@ -1260,15 +1325,25 @@ async function initializeGitHubConnection() {
 
 // 自動保存機能を既存のプロンプト操作関数に統合
 async function autoSaveToGitHub() {
+    console.log('🟡 [DEBUG] autoSaveToGitHub 開始');
+    console.log('🟡 [DEBUG] githubConnector 存在確認:', !!githubConnector);
+
     if (githubConnector) {
+        console.log('🟡 [DEBUG] GitHubConnector準備完了、プロンプト数:', prompts.length);
         try {
             const data = {
                 prompts: prompts
             };
+            console.log('🟡 [DEBUG] githubConnector.autoSave() 実行開始...');
             await githubConnector.autoSave(data);
+            console.log('🟢 [SUCCESS] GitHub自動保存完了');
         } catch (error) {
+            console.error('🔴 [ERROR] GitHub自動保存失敗:', error.message);
+            console.error('🔴 [ERROR] 詳細エラー:', error);
             console.warn('自動保存をスキップ:', error.message);
         }
+    } else {
+        console.warn('🟠 [WARNING] githubConnector が初期化されていません');
     }
 }
 
@@ -1279,33 +1354,54 @@ async function autoSaveToGitHub() {
 
 // addPrompt関数を修正してGitHub自動保存を追加
 async function addPromptWithAutoSave(data) {
+    console.log('🔵 [DEBUG] addPromptWithAutoSave 開始 - データ:', data.title);
     try {
+        console.log('🔵 [DEBUG] addPrompt 実行中...');
         const result = await addPrompt(data);
+        console.log('🔵 [DEBUG] addPrompt 完了 - ID:', result?.id || 'unknown');
+
+        console.log('🔵 [DEBUG] autoSaveToGitHub 実行開始...');
         await autoSaveToGitHub();
+        console.log('🔵 [DEBUG] autoSaveToGitHub 完了');
+
         return result;
     } catch (error) {
-        console.error('プロンプト追加エラー:', error);
+        console.error('🔴 [ERROR] プロンプト追加エラー:', error);
         throw error;
     }
 }
 
 // updatePrompt関数を修正してGitHub自動保存を追加
 async function updatePromptWithAutoSave(id, data) {
+    console.log('🔵 [DEBUG] updatePromptWithAutoSave 開始 - ID:', id, 'データ:', data.title);
     try {
+        console.log('🔵 [DEBUG] updatePrompt 実行中...');
         const result = await updatePrompt(id, data);
+        console.log('🔵 [DEBUG] updatePrompt 完了');
+
+        console.log('🔵 [DEBUG] autoSaveToGitHub 実行開始...');
         await autoSaveToGitHub();
+        console.log('🔵 [DEBUG] autoSaveToGitHub 完了');
+
         return result;
     } catch (error) {
-        console.error('プロンプト更新エラー:', error);
+        console.error('🔴 [ERROR] プロンプト更新エラー:', error);
         throw error;
     }
 }
 
 // deletePrompt関数を修正してGitHub自動保存を追加
 async function deletePromptWithAutoSave(id) {
+    console.log('🔵 [DEBUG] deletePromptWithAutoSave 開始 - ID:', id);
     try {
+        console.log('🔵 [DEBUG] deletePrompt 実行中...');
         const result = await deletePrompt(id);
+        console.log('🔵 [DEBUG] deletePrompt 完了');
+
+        console.log('🔵 [DEBUG] autoSaveToGitHub 実行開始...');
         await autoSaveToGitHub();
+        console.log('🔵 [DEBUG] autoSaveToGitHub 完了');
+
         return result;
     } catch (error) {
         console.error('プロンプト削除エラー:', error);
