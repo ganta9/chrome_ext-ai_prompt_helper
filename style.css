@@ -954,8 +954,8 @@ body {
    ========================================================================== */
 
 .markdown-content {
-  line-height: 1.6;
-  font-size: 14px;
+  line-height: 1.4;     /* 1.6 → 1.4 行間縮小 */
+  font-size: 12px;      /* 14px → 12px 文字サイズ縮小 */
 }
 
 .markdown-content h1,
@@ -964,7 +964,7 @@ body {
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  margin: 16px 0 8px 0;
+  margin: 8px 0 4px 0;    /* 16px/8px → 8px/4px 間隔縮小 */
   color: var(--text-primary);
   font-weight: 600;
 }
@@ -995,19 +995,19 @@ body {
 }
 
 .markdown-content p {
-  margin: 8px 0;
+  margin: 4px 0;        /* 8px → 4px 段落間隔縮小 */
   color: var(--text-secondary);
 }
 
 .markdown-content ul,
 .markdown-content ol {
-  margin: 8px 0;
+  margin: 4px 0;        /* 8px → 4px リスト間隔縮小 */
   padding-left: 20px;
   color: var(--text-secondary);
 }
 
 .markdown-content li {
-  margin: 4px 0;
+  margin: 2px 0;        /* 4px → 2px リストアイテム間隔縮小 */
 }
 
 .markdown-content li > ul,
@@ -1096,4 +1096,109 @@ body {
 
 .markdown-content td {
   color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   v7.1.1 プレビューモーダル専用スタイル（大画面・情報密度最適化）
+   ========================================================================== */
+
+/* プレビューモーダル - 95%サイズで最大化 */
+.modal-preview {
+  width: 95% !important;
+  height: 95% !important;
+  max-width: none;
+  max-height: none;
+}
+
+/* プレビューヘッダー - 最小サイズ */
+.preview-header {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.preview-header h3 {
+  font-size: 16px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* プレビューコンテンツ - フル活用 */
+.preview-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+
+/* プロンプト表示メイン領域 - 90%+占有 */
+.preview-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  background-color: var(--bg-primary);
+}
+
+/* プレビューフッター - 最小限 */
+.preview-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background-color: var(--bg-secondary);
+}
+
+.preview-meta {
+  flex: 1;
+}
+
+.preview-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* コンパクトボタン */
+.btn-compact {
+  padding: 4px 12px;
+  font-size: 12px;
+  min-height: auto;
+}
+
+/* プレビューモーダル内のマークダウンをさらに情報密度化 */
+.preview-main .markdown-content {
+  font-size: 11px;      /* 12px → 11px さらに縮小 */
+  line-height: 1.3;     /* 1.4 → 1.3 さらに縮小 */
+}
+
+.preview-main .markdown-content h1,
+.preview-main .markdown-content h2,
+.preview-main .markdown-content h3,
+.preview-main .markdown-content h4,
+.preview-main .markdown-content h5,
+.preview-main .markdown-content h6 {
+  margin: 6px 0 3px 0;  /* さらに縮小 */
+}
+
+.preview-main .markdown-content p,
+.preview-main .markdown-content ul,
+.preview-main .markdown-content ol {
+  margin: 3px 0;        /* さらに縮小 */
+}
+
+.preview-main .markdown-content li {
+  margin: 1px 0;        /* さらに縮小 */
+}
+
+.preview-main .markdown-content pre {
+  margin: 6px 0;        /* コードブロック間隔縮小 */
+  padding: 8px;         /* パディング縮小 */
 }

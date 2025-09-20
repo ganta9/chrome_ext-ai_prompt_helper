@@ -1271,28 +1271,13 @@ function showPreviewModal(id) {
         previewPromptElement.textContent = prompt.prompt;
     }
 
-    // メモ表示
-    const memoSection = document.getElementById('preview-memo-section');
-    const memoContent = document.getElementById('preview-memo');
-    if (prompt.memo && prompt.memo.trim()) {
-        console.log('👁️ [PREVIEW] メモ表示');
-        memoContent.textContent = prompt.memo;
-        memoSection.style.display = 'block';
+    // 作成日表示（最小限のメタ情報）
+    const previewDate = document.getElementById('preview-date');
+    if (prompt.createdAt) {
+        console.log('👁️ [PREVIEW] 作成日表示');
+        previewDate.textContent = `作成: ${formatDate(prompt.createdAt)}`;
     } else {
-        console.log('👁️ [PREVIEW] メモなし、セクション非表示');
-        memoSection.style.display = 'none';
-    }
-
-    // タグ表示
-    const tagsContainer = document.getElementById('preview-tags');
-    if (prompt.tags && prompt.tags.length > 0) {
-        console.log('👁️ [PREVIEW] タグ表示:', prompt.tags.length, '個');
-        tagsContainer.innerHTML = prompt.tags.map(tag =>
-            `<span class="tag">${escapeHtml(tag)}</span>`
-        ).join('');
-    } else {
-        console.log('👁️ [PREVIEW] タグなし');
-        tagsContainer.innerHTML = '<span class="text-muted">タグなし</span>';
+        previewDate.textContent = '';
     }
 
     // 編集・削除ボタンのイベント設定

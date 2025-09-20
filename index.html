@@ -157,36 +157,29 @@
         </div>
     </div>
 
-    <!-- プロンプトプレビューモーダル（選択ボタンなし版） -->
+    <!-- プロンプトプレビューモーダル（プロンプト表示専用・大画面版） -->
     <div class="modal-overlay" id="preview-modal" style="display: none;">
-        <div class="modal modal-large">
-            <div class="modal-header">
+        <div class="modal modal-preview">
+            <div class="modal-header preview-header">
                 <h3 id="preview-title">プロンプトプレビュー</h3>
                 <button class="modal-close" id="preview-close">×</button>
             </div>
 
-            <div class="modal-content">
-                <div class="detail-content">
-                    <div class="detail-section">
-                        <h4>プロンプト</h4>
-                        <div class="prompt-preview markdown-content" id="preview-prompt"></div>
-                    </div>
-
-                    <div class="detail-section" id="preview-memo-section">
-                        <h4>メモ</h4>
-                        <div class="memo-content" id="preview-memo"></div>
-                    </div>
-
-                    <div class="detail-section">
-                        <h4>タグ</h4>
-                        <div class="tag-list-horizontal" id="preview-tags"></div>
-                    </div>
+            <div class="modal-content preview-content">
+                <!-- プロンプト表示メイン領域（90%+占有） -->
+                <div class="preview-main">
+                    <div class="prompt-preview markdown-content" id="preview-prompt"></div>
                 </div>
 
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" id="preview-edit-btn">編集</button>
-                    <button type="button" class="btn btn-danger" id="preview-delete-btn">削除</button>
-                    <!-- 選択ボタンは削除済み（自動実行されるため） -->
+                <!-- 最小限のメタ情報＋操作ボタン -->
+                <div class="preview-footer">
+                    <div class="preview-meta">
+                        <span id="preview-date" class="preview-date"></span>
+                    </div>
+                    <div class="preview-actions">
+                        <button type="button" class="btn btn-secondary btn-compact" id="preview-edit-btn">編集</button>
+                        <button type="button" class="btn btn-danger btn-compact" id="preview-delete-btn">削除</button>
+                    </div>
                 </div>
             </div>
         </div>
